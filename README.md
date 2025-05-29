@@ -285,7 +285,7 @@ use dinvk::{
 #[global_allocator]
 static ALLOCATOR: WinHeap = WinHeap::new();
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 fn main() -> u8 {
     let addr = GetProcAddress(get_ntdll_address(), "NtOpenProcess", None);
     dprintln!("@ NtOpenProcess: {:?}", addr);
