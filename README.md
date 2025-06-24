@@ -7,26 +7,9 @@
 ![Stars](https://img.shields.io/github/stars/joaoviictorti/dinvk)
 ![License](https://img.shields.io/github/license/joaoviictorti/dinvk)
 
-Dynamically invoke arbitrary code with Rust tricks, `#[no_std]` support, and compatibility for `x64`, `x86`, `ARM64` and `WoW64` (DInvoke)
+`dinvk` is a library for dynamically invoke arbitrary code with Rust tricks, `#[no_std]` support, and compatibility for `x64`, `x86`, `ARM64` and `WoW64` (DInvoke)
 
 This tool is a Rust version of [DInvoke](https://github.com/TheWover/DInvoke), originally written in C#, with additional features added.
-
-## Table of Contents
-
-- [Table of Contents](#table-of-contents)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-    - [Dynamically Invoke Arbitrary Code](#dynamically-invoke-arbitrary-code)
-    - [Retrieving Module Addresses and Exported APIs](#retrieving-module-addresses-and-exported-apis)
-    - [Indirect syscall](#indirect-syscall)
-    - [Redirecting Syscall Invocation to Different DLLs](#redirecting-syscall-invocation-to-different-dlls)
-    - [Different Hash Methods for API Hashing](#different-hash-methods-for-api-hashing)
-    - [Library Proxy Loading](#library-proxy-loading)
-    - [Tampered Syscalls Via Hardware BreakPoints](#tampered-syscalls-via-hardware-breakpoints)
-    - [Support for #\[no\_std\] Environments](#support-for-no_std-environments)
-- [References](#references)
-- [License](#license)
 
 ## Features
 
