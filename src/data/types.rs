@@ -1,6 +1,3 @@
-//! This module defines type aliases and function signatures for interacting with system-level APIs
-//! and memory management operations.
-
 use core::ffi::c_void;
 use super::{
     CONTEXT, EVENT_TYPE, EXCEPTION_POINTERS, 

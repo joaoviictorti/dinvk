@@ -1,5 +1,3 @@
-//! This module defines core data structures and their layouts.
-
 use bitflags::bitflags;
 use core::{ffi::c_void, ptr::null_mut};
 use super::{

@@ -1,5 +1,3 @@
-//! This module provides key constants for interacting with APIs
-
 use super::types::IMAGE_DIRECTORY_ENTRY;
 
 pub const IMAGE_NT_SIGNATURE: u32 = 17744u32;
