@@ -103,7 +103,7 @@
 //!
 //! For updates, usage guides, and examples, visit the [repository].
 //!
-//! [repository]: https://github.com/joaoviictorti/uwd
+//! [repository]: https://github.com/joaoviictorti/dinvk
 
 #![no_std]
 #![allow(non_snake_case, non_camel_case_types)]
