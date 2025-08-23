@@ -76,27 +76,23 @@
 //! ```no_run
 //! use dinvk::hash::*;
 //!
-//! fn main() {
-//!     println!("jenkins: {}", jenkins("dinvk"));
-//!     println!("djb2:    {}", djb2("dinvk"));
-//!     println!("fnv1a:   {}", fnv1a("dinvk"));
-//! }
+//! println!("jenkins: {}", jenkins("dinvk"));
+//! println!("djb2:    {}", djb2("dinvk"));
+//! println!("fnv1a:   {}", fnv1a("dinvk"));
 //! ```
 //!
 //! ### 4. Proxy DLL Loading
 //! ```no_run
 //! use dinvk::LdrProxy;
 //!
-//! fn main() {
-//!     // Use RtlQueueWorkItem to indirectly load DLL
-//!     LdrProxy::new("xpsservices.dll").work();
+//! // Use RtlQueueWorkItem to indirectly load DLL
+//! LdrProxy::new("xpsservices.dll").work();
 //!
-//!     // Or RtlCreateTimer
-//!     LdrProxy::new("xpsservices.dll").timer();
+//! // Or RtlCreateTimer
+//! LdrProxy::new("xpsservices.dll").timer();
 //!
-//!     // Or RtlRegisterWait
-//!     LdrProxy::new("xpsservices.dll").register_wait();
-//! }
+//! // Or RtlRegisterWait
+//! LdrProxy::new("xpsservices.dll").register_wait();
 //! ```
 //! 
 //! # More Information
@@ -112,7 +108,8 @@
     clippy::not_unsafe_ptr_arg_deref,
     clippy::missing_transmute_annotations,
     clippy::missing_safety_doc,
-    clippy::macro_metavars_in_unsafe
+    clippy::macro_metavars_in_unsafe,
+    clippy::collapsible_if
 )]
 
 extern crate alloc;
