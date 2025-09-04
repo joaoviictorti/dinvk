@@ -1,5 +1,3 @@
-#![cfg(any(target_arch = "x86_64", target_arch = "x86"))]
-
 use core::{sync::atomic::{AtomicUsize, Ordering}};
 
 /// The global variable that stores the currently selected DLL for system calls.

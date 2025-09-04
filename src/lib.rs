@@ -141,8 +141,7 @@ mod module;
 mod syscall;
 mod utils;
 
+pub use utils::*;
 pub use syscall::*;
 pub use functions::*;
-pub use module::*;
-pub use module::ldr::*;
-pub use utils::*;
+pub use module::{*, ldr::*};
