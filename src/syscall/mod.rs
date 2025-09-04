@@ -1,12 +1,3 @@
-/// Assembly-level utilities and inline assembly code used in the crate.
-///
-/// # Note
-/// 
-/// - This module is hidden from the public API documentation (`#[doc(hidden)]`).
-/// - It is intended for internal use only.
-#[doc(hidden)]
-pub mod asm;
-
 #[cfg(target_arch = "x86")]
 mod x86;
 
@@ -30,6 +21,9 @@ mod dll;
 
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
 pub use dll::*;
+
+#[doc(hidden)]
+pub mod asm;
 
 /// The maximum range of bytes to search when resolving syscall instructions.
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
