@@ -10,8 +10,11 @@ use core::{
 
 use obfstr::obfstr as s;
 use crate::{
-    data::*, functions::LoadLibraryA, 
-    hash::crc32ba, parse::PE, utils::*
+    data::*,
+    utils::*,
+    pe::PE,
+    functions::LoadLibraryA, 
+    hash::crc32ba, 
 };
 
 /// Module containing dynamic module loader proxy.
@@ -365,7 +368,7 @@ pub fn NtCurrentPeb() -> *const PEB {
     return __readfsdword(0x30) as *const PEB;
 
     #[cfg(target_arch = "aarch64")]
-    return *(__readx18(0x60) as *const *const PEB);
+    return unsafe { *(__readx18(0x60) as *const *const PEB) };
 }
 
 /// Retrieves a pointer to the Thread Environment Block (TEB) of the current thread.
@@ -382,7 +385,7 @@ pub fn NtCurrentTeb() -> *const TEB {
     return __readfsdword(0x18) as *const TEB;
 
     #[cfg(target_arch = "aarch64")]
-    return *(__readx18(0x30) as *const *const TEB);
+    return unsafe { *(__readx18(0x30) as *const *const TEB) };
 }
 
 /// Reads a `u64` value from the GS segment at the specified offset.

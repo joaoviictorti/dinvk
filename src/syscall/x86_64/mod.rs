@@ -6,7 +6,7 @@ use core::{
 use crate::{ 
     Dll,
     hash::jenkins3, 
-    parse::PE, 
+    pe::PE, 
     syscall::{DOWN, RANGE, UP},
 };
 

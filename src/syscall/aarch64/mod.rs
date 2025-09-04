@@ -5,7 +5,7 @@ use core::{
 };
 use crate::{
     hash::jenkins3, 
-    parse::PE,
+    pe::PE,
 };
 
 /// Resolves the System Service Number (SSN) for a given function name within a module.

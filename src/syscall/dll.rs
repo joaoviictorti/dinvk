@@ -11,12 +11,12 @@ static DEFAULT_DLL: AtomicUsize = AtomicUsize::new(Dll::Ntdll as usize);
 /// Represents different dynamic link libraries (DLLs) that contain system call functions.
 #[derive(Clone, Copy, PartialEq)]
 pub enum Dll {
-    #[cfg(target_arch = "x86_64")]
     /// `iumdll.dll`
+    #[cfg(target_arch = "x86_64")]
     Iumdll,
 
-    #[cfg(target_arch = "x86_64")]
     /// `vertdll.dll`
+    #[cfg(target_arch = "x86_64")]
     Vertdll,
 
     /// `win32u.dll`

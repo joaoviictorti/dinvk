@@ -16,7 +16,7 @@
 //! ## Examples
 //!
 //! ### 1. Dynamically Invoke Arbitrary Code
-//! ```no_run
+//! ```rust
 //! use dinvk::{
 //!     data::HeapAllocFn,
 //!     dinvoke, GetModuleHandle,
@@ -41,12 +41,10 @@
 //! ```
 //!
 //! ### 2. Indirect Syscall
-//! ```no_run
+//! ```rust
 //! use std::{ffi::c_void, ptr::null_mut};
-//! use dinvk::{
-//!     data::{NTSTATUS, NT_SUCCESS},
-//!     syscall, NtCurrentProcess
-//! };
+//! use dinvk::{NtCurrentProcess, NT_SUCCESS, syscall};
+//! use dinvk::data::NTSTATUS;
 //!
 //! fn main() -> Result<(), NTSTATUS> {
 //!     let mut addr = null_mut::<c_void>();
@@ -73,7 +71,7 @@
 //! ```
 //!
 //! ### 3. Hashing APIs
-//! ```no_run
+//! ```rust
 //! use dinvk::hash::*;
 //!
 //! println!("jenkins: {}", jenkins("dinvk"));
@@ -82,7 +80,7 @@
 //! ```
 //!
 //! ### 4. Proxy DLL Loading
-//! ```no_run
+//! ```rust
 //! use dinvk::LdrProxy;
 //!
 //! // Use RtlQueueWorkItem to indirectly load DLL
@@ -121,7 +119,7 @@ pub mod data;
 pub mod hash;
 
 /// PE Parsing
-pub mod parse;
+pub mod pe;
 
 /// Hardware breakpoint management utilities (only for x86/x86_64 targets).
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
