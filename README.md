@@ -115,8 +115,9 @@ Executes syscalls indirectly, bypassing user-mode API hooks and security monitor
 ```rs
 use std::{ffi::c_void, ptr::null_mut};
 use dinvk::{
-    data::{HANDLE, NTSTATUS, NT_SUCCESS}, 
-    syscall, NtCurrentProcess
+    data::{HANDLE, NTSTATUS}, 
+    syscall, NtCurrentProcess,
+    NT_SUCCESS
 };
 
 fn main() -> Result<(), NTSTATUS> {
@@ -151,8 +152,9 @@ The code below demonstrates how to invoke `NtAllocateVirtualMemory` using differ
 ```rs
 use std::{ffi::c_void, ptr::null_mut};
 use dinvk::{
-    data::{HANDLE, NTSTATUS, NT_SUCCESS}, 
+    data::{HANDLE, NTSTATUS}, 
     syscall, Dll, NtCurrentProcess
+    NT_SUCCESS
 };
 
 fn main() -> Result<(), NTSTATUS> {
