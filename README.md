@@ -242,7 +242,7 @@ Enables `#[no_std]` compatibility for environments without the Rust standard lib
 
 ```toml
 [dependencies]
-dinvk = { version = "<version>", features = ["alloc", "dinvk_panic"] }
+dinvk = { version = "<version>", features = ["alloc", "panic"] }
 ```
 
 * Running in `#[no_std]` Mode.
@@ -271,7 +271,7 @@ static ALLOCATOR: WinHeap = WinHeap;
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    dinvk::panic::dinvk_handler(info)
+    dinvk::panic::panic_handler(info)
 }
 ```
 
