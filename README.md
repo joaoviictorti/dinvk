@@ -15,7 +15,7 @@ This tool is a Rust version of [DInvoke](https://github.com/TheWover/DInvoke), o
 
 - [Table of Contents](#table-of-contents)
 - [Features](#features)
-- [Installation](#installation)
+- [Getting started](#getting-started)
 - [Usage](#usage)
     - [Dynamically Invoke Arbitrary Code](#dynamically-invoke-arbitrary-code)
     - [Retrieving Module Addresses and Exported APIs](#retrieving-module-addresses-and-exported-apis)
@@ -39,7 +39,7 @@ This tool is a Rust version of [DInvoke](https://github.com/TheWover/DInvoke), o
 - ✅ Retrieve module addresses via string and hashing.
 - ✅ Supports multiple 32-bit hash algorithms for API Hashing using `GetModuleHandle` and `GetProcAddress`: Jenkins3, Jenkins One-at-a-Time, DJB2, Murmur3, FNV-1a, SDBM, Lose, PJW, JS, and AP.
 
-## Installation
+## Getting started
 
 Add `dinvk` to your project by updating your `Cargo.toml`:
 ```bash
