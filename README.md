@@ -34,7 +34,6 @@ This tool is a Rust version of [DInvoke](https://github.com/TheWover/DInvoke), o
 - ✅ Redirecting Syscall Invocation to Different DLLs.
 - ✅ Tampered Syscalls Via Hardware BreakPoints (*x64*, *x86*, *Wow64*).
 - ✅ PE headers parsing.
-- ✅ Library Proxy Loading.
 - ✅ Supports `#[no_std]` environments (with `alloc`).
 - ✅ Retrieve exported API addresses via string, ordinal, and hashing.
 - ✅ Retrieve module addresses via string and hashing.
