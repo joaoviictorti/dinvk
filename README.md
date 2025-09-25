@@ -114,29 +114,21 @@ Executes syscalls indirectly, bypassing user-mode API hooks and security monitor
 ```rs
 use std::{ffi::c_void, ptr::null_mut};
 use dinvk::{
-    data::{HANDLE, NTSTATUS}, 
-    syscall, NtCurrentProcess,
-    NT_SUCCESS
+    data::{HANDLE, NTSTATUS},
+    NT_SUCCESS, syscall, Dll
 };
 
 fn main() -> Result<(), NTSTATUS> {
+    // Memory allocation using a syscall
     let mut addr = null_mut::<c_void>();
     let mut size = (1 << 12) as usize;
-
-    let status = syscall!(
-        "NtAllocateVirtualMemory",
-        NtCurrentProcess(),
-        &mut addr,
-        0,
-        &mut size,
-        0x3000,
-        0x40
-    ).ok_or(-1)?;
-
+    let status = syscall!("NtAllocateVirtualMemory", -1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04)?;
     if !NT_SUCCESS(status) {
-        eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {:?}", status);
-        return Err(status)
+        eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
+        return Err(status);
     }
+
+    println!("[+] Address: {:?}", addr);
 
     Ok(())
 }
@@ -163,7 +155,7 @@ fn main() -> Result<(), NTSTATUS> {
     // Memory allocation using a syscall
     let mut addr = null_mut::<c_void>();
     let mut size = (1 << 12) as usize;
-    let status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess(), &mut addr, 0, &mut size, 0x3000, 0x04).ok_or(-1)?;
+    let status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess(), &mut addr, 0, &mut size, 0x3000, 0x04)?;
     if !NT_SUCCESS(status) {
         eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
         return Err(status);
@@ -233,7 +225,7 @@ fn main() {
     let mut size = 1 << 12;
     let status = NtAllocateVirtualMemory(-1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04);
     if !NT_SUCCESS(status) {
-        eprintln!("@ NtAllocateVirtualMemory Failed With Status: {}", status);
+        eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
         return;
     }
 
