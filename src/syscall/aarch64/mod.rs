@@ -3,7 +3,7 @@ use core::{
     ptr::read, 
     slice::from_raw_parts,
 };
-use crate::{
+use super::{
     hash::jenkins3, 
     pe::PE,
 };

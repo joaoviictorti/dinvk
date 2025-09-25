@@ -6,13 +6,13 @@ use core::{
 
 use crate::{ 
     Dll,
+    pe::PE,
     hash::{crc32ba, jenkins3}, 
-    pe::PE, 
-    syscall::{DOWN, RANGE, UP},
+    syscall::{DOWN, RANGE, UP}
 };
 use crate::{
-    LoadLibraryA, 
-    GetModuleHandle, 
+    LoadLibraryA,
+    GetModuleHandle,
     GetProcAddress
 };
 
@@ -32,7 +32,10 @@ pub fn ssn(
 ) -> Option<u16> {
     unsafe {
         // Recovering the export directory and hashing the module 
-        let export_dir = PE::parse(module).exports().directory()?;
+        let export_dir = PE::parse(module)
+            .exports()
+            .directory()?;
+        
         let hash = jenkins3(function_name);
         let module = module as usize;
         
@@ -164,7 +167,6 @@ pub fn get_syscall_address(mut address: *mut c_void) -> Option<u64> {
     unsafe {
         // Here we will use `win32u.dll` / `vertdll.dll` / `iumdll.dll`, 
         // in case ntdll is not chosen to invoke the syscall
-
         let dll = Dll::current();
         if dll != Dll::Ntdll {
             let mut h_module = GetModuleHandle(dll.hash(), Some(crc32ba));

@@ -1,9 +1,10 @@
 use alloc::vec::Vec;
 use core::{fmt::{self, Write}, ptr};
-use crate::{
-    data::WriteConsoleAFn, 
-    dinvoke, GetModuleHandle, 
-    GetStdHandle, 
+use super::data::WriteConsoleAFn;
+use super::{
+    dinvoke,
+    GetModuleHandle, 
+    GetStdHandle 
 };
 
 /// `ConsoleWriter` is a custom implementation of `core::fmt::Write`

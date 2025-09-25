@@ -1,11 +1,6 @@
 use core::{sync::atomic::{AtomicUsize, Ordering}};
 
 /// The global variable that stores the currently selected DLL for system calls.
-///
-/// # Default
-///
-/// By default, this is set to `Dll::Ntdll`, meaning that system calls will be
-/// resolved from `ntdll.dll` unless explicitly changed using [`Dll::use_dll`].
 static DEFAULT_DLL: AtomicUsize = AtomicUsize::new(Dll::Ntdll as usize);
 
 /// Represents different dynamic link libraries (DLLs) that contain system call functions.

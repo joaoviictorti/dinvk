@@ -1,16 +1,17 @@
 use core::{ffi::c_void, ptr::null_mut};
 use obfstr::obfstr as s;
 
-use crate::{
-    data::*, dinvoke, get_ntdll_address, 
-    GetModuleHandle, NtCurrentTeb,
-};
-
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use crate::breakpoint::{
+use super::breakpoint::{
     is_breakpoint_enabled, 
     set_breakpoint, 
     WINAPI, CURRENT_API
+};
+use super::{
+    data::*, 
+    dinvoke,
+    get_ntdll_address, 
+    GetModuleHandle,
 };
 
 /// Wrapper for the `LoadLibraryA` function from `KERNEL32.DLL`.
@@ -55,8 +56,8 @@ pub fn NtAllocateVirtualMemory(
                 process_handle = -23isize as HANDLE; 
                 
                 // Locate and set a breakpoint on the NtAllocateVirtualMemory syscall.
-                let addr = crate::GetProcAddress(get_ntdll_address(), s!("NtAllocateVirtualMemory"), None);
-                if let Some(syscall_addr) = crate::get_syscall_address(addr) {
+                let addr = super::GetProcAddress(get_ntdll_address(), s!("NtAllocateVirtualMemory"), None);
+                if let Some(syscall_addr) = super::get_syscall_address(addr) {
                     set_breakpoint(syscall_addr);
                 }
             }
@@ -104,8 +105,8 @@ pub fn NtProtectVirtualMemory(
                 process_handle = -23isize as HANDLE; 
 
                 // Locate and set a breakpoint on the NtProtectVirtualMemory syscall.
-                let addr = crate::GetProcAddress(get_ntdll_address(), s!("NtProtectVirtualMemory"), None);
-                if let Some(syscall_addr) = crate::get_syscall_address(addr) {
+                let addr = super::GetProcAddress(get_ntdll_address(), s!("NtProtectVirtualMemory"), None);
+                if let Some(syscall_addr) = super::get_syscall_address(addr) {
                     set_breakpoint(syscall_addr);
                 }
             }
@@ -142,6 +143,8 @@ pub fn NtCreateThreadEx(
 ) -> NTSTATUS {
     cfg_if::cfg_if! {
         if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
+            use alloc::boxed::Box;
+
             // Handle debugging breakpoints, if enabled.
             if is_breakpoint_enabled() {
                 unsafe {
@@ -161,11 +164,11 @@ pub fn NtCreateThreadEx(
                 desired_access = 0x80;
 
                 // Modifying object attributes before the syscall.
-                object_attributes = alloc::boxed::Box::leak(alloc::boxed::Box::new(OBJECT_ATTRIBUTES::default()));
+                object_attributes = Box::leak(Box::new(OBJECT_ATTRIBUTES::default()));
 
                 // Locate and set a breakpoint on the NtCreateThreadEx syscall.
-                let addr = crate::GetProcAddress(get_ntdll_address(), s!("NtCreateThreadEx"), None);
-                if let Some(addr) = crate::get_syscall_address(addr) {
+                let addr = super::GetProcAddress(get_ntdll_address(), s!("NtCreateThreadEx"), None);
+                if let Some(addr) = super::get_syscall_address(addr) {
                     set_breakpoint(addr);
                 }
             }
@@ -221,8 +224,8 @@ pub fn NtWriteVirtualMemory(
                 number_of_bytes_to_write = temp.len();
 
                 // Locate and set a breakpoint on the NtWriteVirtualMemory syscall.
-                let addr = crate::GetProcAddress(get_ntdll_address(), s!("NtWriteVirtualMemory"), None);
-                if let Some(addr) = crate::get_syscall_address(addr) {
+                let addr = super::GetProcAddress(get_ntdll_address(), s!("NtWriteVirtualMemory"), None);
+                if let Some(addr) = super::get_syscall_address(addr) {
                     set_breakpoint(addr);
                 }
             }
@@ -240,60 +243,6 @@ pub fn NtWriteVirtualMemory(
         number_of_bytes_written
     )
     .unwrap_or(STATUS_UNSUCCESSFUL)
-}
-
-/// Wrapper for the `HeapAlloc` function from `KERNEL32.DLL`.
-pub fn HeapAlloc(
-    hheap: HANDLE, 
-    dwflags: HEAP_FLAGS, 
-    dwbytes: usize
-) -> *mut c_void {
-    let kernel32 = GetModuleHandle(s!("KERNEL32.DLL"), None);
-    dinvoke!(
-        kernel32,
-        s!("HeapAlloc"),
-        HeapAllocFn,
-        hheap,
-        dwflags,
-        dwbytes
-    )
-    .unwrap_or(null_mut())
-}
-
-/// Wrapper for the `HeapFree` function from `KERNEL32.DLL`.
-pub fn HeapFree(
-    hheap: HANDLE,
-    dwflags: HEAP_FLAGS,
-    lpmem: *const c_void,
-) -> *mut c_void {
-    let kernel32 = GetModuleHandle(s!("KERNEL32.DLL"), None);
-    dinvoke!(
-        kernel32,
-        s!("HeapFree"),
-        HeapFreeFn,
-        hheap,
-        dwflags,
-        lpmem
-    )
-    .unwrap_or(null_mut())
-}
-
-/// Wrapper for the `HeapCreate` function from `KERNEL32.DLL`.
-pub fn HeapCreate(
-    floptions: HEAP_FLAGS,
-    dwinitialsize: usize,
-    dwmaximumsize: usize,
-) -> *mut c_void {
-    let kernel32 = GetModuleHandle(s!("KERNEL32.DLL"), None);
-    dinvoke!(
-        kernel32,
-        s!("HeapCreate"),
-        HeapCreateFn,
-        floptions,
-        dwinitialsize,
-        dwmaximumsize
-    )
-    .unwrap_or(null_mut())
 }
 
 /// Wrapper for the `AddVectoredExceptionHandler` function from `KERNEL32.DLL`.
@@ -326,14 +275,14 @@ pub fn RemoveVectoredExceptionHandler(
     .unwrap_or(0)
 }
 
-/// Wrapper for the `NtGetThreadContext` function from `NTDLL.DLL`.
-pub fn NtGetThreadContext(
+/// Wrapper for the `NtGetContextThread` function from `NTDLL.DLL`.
+pub fn NtGetContextThread(
     hthread: HANDLE,
     lpcontext: *mut CONTEXT,
 ) -> i32 {
     dinvoke!(
         get_ntdll_address(),
-        s!("NtGetThreadContext"),
+        s!("NtGetContextThread"),
         NtGetThreadContextFn,
         hthread,
         lpcontext
@@ -341,14 +290,14 @@ pub fn NtGetThreadContext(
     .unwrap_or(0)
 }
 
-/// Wrapper for the `NtSetThreadContext` function from `NTDLL.DLL`.
-pub fn NtSetThreadContext(
+/// Wrapper for the `NtSetContextThread` function from `NTDLL.DLL`.
+pub fn NtSetContextThread(
     hthread: HANDLE,
     lpcontext: *const CONTEXT,
 ) -> i32 {
     dinvoke!(
         get_ntdll_address(),
-        s!("NtSetThreadContext"),
+        s!("NtSetContextThread"),
         NtSetThreadContextFn,
         hthread,
         lpcontext
@@ -357,13 +306,13 @@ pub fn NtSetThreadContext(
 }
 
 /// Wrapper for the `GetStdHandle` function from `KERNEL32.DLL`.
-pub fn GetStdHandle(nStdHandle: u32) -> HANDLE {
+pub fn GetStdHandle(handle: u32) -> HANDLE {
     let kernel32 = GetModuleHandle(s!("KERNEL32.DLL"), None);
     dinvoke!(
         kernel32,
         s!("GetStdHandle"),
         GetStdHandleFn,
-        nStdHandle
+        handle
     )
     .unwrap_or(null_mut())
 }
@@ -383,7 +332,7 @@ pub fn NtCurrentThread() -> HANDLE {
 /// Returns the default heap handle for the current process from the PEB.
 #[inline(always)]
 pub fn GetProcessHeap() -> HANDLE {
-    let peb = crate::NtCurrentPeb();
+    let peb = NtCurrentPeb();
     (unsafe { *peb }).ProcessHeap
 }
 
@@ -399,6 +348,82 @@ pub fn GetCurrentProcessId() -> u32 {
 pub fn GetCurrentThreadId() -> u32 {
     let teb = NtCurrentTeb();
     (unsafe { *teb }).Reserved1[9] as u32
+}
+
+/// Retrieves a pointer to the PEB of the current process.
+#[inline(always)]
+pub fn NtCurrentPeb() -> *const PEB {
+    #[cfg(target_arch = "x86_64")]
+    return __readgsqword(0x60) as *const PEB;
+
+    #[cfg(target_arch = "x86")]
+    return __readfsdword(0x30) as *const PEB;
+
+    #[cfg(target_arch = "aarch64")]
+    return unsafe { *(__readx18(0x60) as *const *const PEB) };
+}
+
+/// Retrieves a pointer to the TEB of the current thread.
+#[inline(always)]
+pub fn NtCurrentTeb() -> *const TEB {
+    #[cfg(target_arch = "x86_64")]
+    return __readgsqword(0x30) as *const TEB;
+
+    #[cfg(target_arch = "x86")]
+    return __readfsdword(0x18) as *const TEB;
+
+    #[cfg(target_arch = "aarch64")]
+    return unsafe { *(__readx18(0x30) as *const *const TEB) };
+}
+
+/// Reads a `u64` value from the GS segment at the specified offset.
+#[inline(always)]
+#[cfg(target_arch = "x86_64")]
+pub fn __readgsqword(offset: u64) -> u64 {
+    let out: u64;
+    unsafe {
+        core::arch::asm!(
+            "mov {}, gs:[{:e}]",
+            lateout(reg) out,
+            in(reg) offset,
+            options(nostack, pure, readonly),
+        );
+    }
+
+    out
+}
+
+/// Reads a `u32` value from the FS segment at the specified offset.
+#[inline(always)]
+#[cfg(target_arch = "x86")]
+pub fn __readfsdword(offset: u32) -> u32 {
+    let out: u32;
+    unsafe {
+        core::arch::asm!(
+            "mov {:e}, fs:[{:e}]",
+            lateout(reg) out,
+            in(reg) offset,
+            options(nostack, pure, readonly),
+        );
+    }
+
+    out
+}
+
+/// Reads a `u64` value from the x18 register at the specified offset.
+#[inline(always)]
+#[cfg(target_arch = "aarch64")]
+pub fn __readx18(offset: u64) -> u64 {
+    let out: u64;
+    unsafe {
+        core::arch::asm!(
+            "mov {}, x18",
+            lateout(reg) out,
+            options(nostack, pure, readonly),
+        );
+    }
+
+    out + offset
 }
 
 /// Evaluates to TRUE if the return value specified by `nt_status` is a success

@@ -4,10 +4,8 @@
 #![allow(
     clippy::too_many_arguments,
     clippy::not_unsafe_ptr_arg_deref,
-    clippy::missing_transmute_annotations,
     clippy::missing_safety_doc,
     clippy::macro_metavars_in_unsafe,
-    clippy::collapsible_if
 )]
 
 extern crate alloc;
@@ -25,11 +23,11 @@ pub mod pe;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 pub mod breakpoint;
 
-/// Custom panic handler support (requires `dinvk_panic` feature).
-#[cfg(feature = "dinvk_panic")]
+/// Custom panic handler support.
+#[cfg(feature = "panic")]
 pub mod panic;
 
-/// Heap allocator using Windows native APIs (requires `alloc` feature).
+/// Heap allocator using Windows native APIs.
 #[cfg(feature = "alloc")]
 pub mod allocator;
 
@@ -37,11 +35,9 @@ mod functions;
 mod macros;
 mod module;
 mod syscall;
-mod util;
 mod console;
 
 pub use syscall::*;
 pub use functions::*;
 pub use module::*;
-pub use util::{shuffle};
-pub use console::ConsoleWriter;
+pub use console::*;

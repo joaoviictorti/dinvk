@@ -4,13 +4,13 @@ use core::{
     slice::from_raw_parts,
 };
 
-use crate::{ 
+use super::{ 
     Dll,
     hash::jenkins3, 
     pe::PE, 
     syscall::{DOWN, RANGE, UP},
 };
-use crate::{
+use super::{
     LoadLibraryA, 
     GetModuleHandle, 
     GetProcAddress
@@ -163,7 +163,7 @@ pub fn get_syscall_address(address: *mut c_void) -> Option<u32> {
         // Here we will use `win32u.dll`, in case ntdll is not chosen to invoke the syscall
         let dll = Dll::current();
         if dll != Dll::Ntdll {
-            let mut h_module = GetModuleHandle(dll.hash(), Some(crate::hash::crc32ba));
+            let mut h_module = GetModuleHandle(dll.hash(), Some(super::hash::crc32ba));
             if h_module.is_null() {
                 h_module = LoadLibraryA(dll.name());
             }
@@ -203,6 +203,6 @@ pub fn get_syscall_address(address: *mut c_void) -> Option<u32> {
 /// - https://github.com/AlexPetrusca/assembly-virus/blob/17dbe88e066c4ae680136d10cd3110820169a0e9/docs/TEB.txt#L23
 #[inline(always)]
 pub(crate) fn is_wow64() -> bool {
-    let addr = unsafe { crate::__readfsdword(0xC0) };
+    let addr = unsafe { super::__readfsdword(0xC0) };
     addr != 0
 }

@@ -2,13 +2,20 @@ use core::ffi::c_void;
 use core::ptr::addr_of_mut;
 use core::sync::atomic::{Ordering, AtomicBool};
 
-use crate::{NtGetThreadContext, NtSetThreadContext};
-use crate::data::{
+use super::{
+    NtSetContextThread, 
+    NtGetContextThread, 
+    NtCurrentThread
+};
+use super::data::{
     CONTEXT, CONTEXT_DEBUG_REGISTERS_AMD64, EXCEPTION_SINGLE_STEP,
     EXCEPTION_CONTINUE_EXECUTION, EXCEPTION_CONTINUE_SEARCH, 
     EXCEPTION_POINTERS, HANDLE, OBJECT_ATTRIBUTES,
     CONTEXT_DEBUG_REGISTERS_X86
 };
+
+/// Global mutable static holding the current Windows API call.
+pub static mut CURRENT_API: Option<WINAPI> = None;
 
 // Atomic variable to control the use of VEH.
 static USE_BREAKPOINT: AtomicBool = AtomicBool::new(false);
@@ -18,13 +25,6 @@ static USE_BREAKPOINT: AtomicBool = AtomicBool::new(false);
 /// # Arguments
 /// 
 /// * `enabled` - Enables / Disables the use of hardware breakpoints
-///
-/// # Example
-/// 
-/// ```rust,ignore
-/// set_use_breakpoint(true);  // Enable breakpoints.
-/// set_use_breakpoint(false); // Disable breakpoints.
-/// ```
 #[inline(always)]
 pub fn set_use_breakpoint(enabled: bool) {
     USE_BREAKPOINT.store(enabled, Ordering::SeqCst);
@@ -34,18 +34,7 @@ pub fn set_use_breakpoint(enabled: bool) {
 ///
 /// # Returns
 /// 
-/// * `true` - If breakpoints are enabled.
-/// * `false` - If breakpoints are disabled.
-///
-/// # Example
-/// 
-/// ```rust,ignore
-/// if is_breakpoint_enabled() {
-///     println!("Breakpoints are enabled!");
-/// } else {
-///     println!("Breakpoints are disabled.");
-/// }
-/// ```
+/// * If breakpoints are enabled.
 #[inline(always)]
 pub fn is_breakpoint_enabled() -> bool {
     USE_BREAKPOINT.load(Ordering::SeqCst)
@@ -53,25 +42,16 @@ pub fn is_breakpoint_enabled() -> bool {
 
 /// Configures a hardware breakpoint on the specified address.
 ///
-/// This function sets a hardware breakpoint by manipulating the debug registers
-/// (specifically, `DR0`) for the current thread. The breakpoint will trigger an exception
-/// whenever the CPU executes the instruction at the specified address.
-///
 /// # Arguments
 /// 
 /// * `address` - The memory address where the hardware breakpoint should be set.
-///
-/// # Example
-/// ```rust,ignore
-/// set_breakpoint(0x7FFF_AA12_3ABC);  // Sets a breakpoint at the specified address.
-/// ```
 pub(crate) fn set_breakpoint<T: Into<u64>>(address: T) {
     let mut ctx = CONTEXT {
         ContextFlags: if cfg!(target_arch = "x86_64") { CONTEXT_DEBUG_REGISTERS_AMD64 } else { CONTEXT_DEBUG_REGISTERS_X86 },
         ..Default::default()
     };
 
-    NtGetThreadContext(-2isize as HANDLE, &mut ctx);
+    NtGetContextThread(NtCurrentThread(), &mut ctx);
 
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "x86_64")] {
@@ -85,13 +65,10 @@ pub(crate) fn set_breakpoint<T: Into<u64>>(address: T) {
         }
     }
 
-    NtSetThreadContext(-2isize as HANDLE, &ctx);
+    NtSetContextThread(NtCurrentThread(), &ctx);
 }
 
 /// Modifies specific bits in the `DR7` register.
-///
-/// This helper function updates the `DR7` debug control register. It allows enabling,
-/// disabling, or modifying specific debug conditions for the hardware breakpoint.
 ///
 /// # Arguments
 /// 
@@ -103,19 +80,11 @@ pub(crate) fn set_breakpoint<T: Into<u64>>(address: T) {
 /// # Returns
 /// 
 /// * The updated value of the `DR7` register.
-///
-/// # Example
-/// ```rust,ignore
-/// let updated_dr7 = set_dr7_bits(dr7, 0, 1, 1); // Enables the first debug condition.
-/// ``` 
 fn set_dr7_bits<T: Into<u64>>(current: T, start_bit: i32, nmbr_bits: i32, new_bit: u64) -> u64 {
     let current = current.into();
     let mask = (1u64 << nmbr_bits) - 1;
     (current & !(mask << start_bit)) | (new_bit << start_bit)
 }
-
-/// Global mutable static holding the current Windows API call.
-pub static mut CURRENT_API: Option<WINAPI> = None;
 
 /// Enum representing different Windows API calls that can be used.
 #[derive(Debug)]
@@ -170,7 +139,7 @@ pub unsafe extern "system" fn veh_handler(exceptioninfo: *mut EXCEPTION_POINTERS
     if (*context).Rip == (*context).Dr0 && (*context).Dr7 & 1 == 1 {
         if let Some(current) = (*addr_of_mut!(CURRENT_API)).take() {
             match current {
-                WINAPI::NtAllocateVirtualMemory { 
+                WINAPI::NtAllocateVirtualMemory {
                     ProcessHandle, 
                     Protect 
                 } => {

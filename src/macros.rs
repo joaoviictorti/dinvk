@@ -2,8 +2,8 @@
 /// 
 /// # Arguments
 /// 
-/// * `$module` - Module address for the api to be called (e.g., `"ntdll.dll"`).
-/// * `$function` - A string slice with the name of the function to invoke (e.g., `"NtQueryInformationProcess"`).
+/// * `$module` - Module address for the api to be called.
+/// * `$function` - A string slice with the name of the function to invoke.
 /// * `$ty` - The type of the function to cast to, including its signature.
 /// * `$($arg-expr),*` - A variadic list of arguments to pass to the function.
 /// 
@@ -32,7 +32,7 @@ macro_rules! dinvoke {
 ///
 /// # Arguments
 ///
-/// * `$function_name` - A string slice representing the name of the syscall function (e.g., `"NtQueryInformationProcess"`).
+/// * `$function_name` - A string slice representing the name of the syscall function.
 /// * `$($args:expr),+` - A variadic list of arguments to pass to the syscall.
 ///
 /// # Example
@@ -72,45 +72,7 @@ macro_rules! syscall {
     }};
 }
 
-/// Declares an external function from a dynamically linked library.
-///
-/// # Arguments
-///
-/// * `$library` - A string literal representing the name of the shared library (e.g., `"ntdll.dll"`).
-/// * `$abi` - A string literal specifying the calling convention (e.g., `"system"` for Windows API calls).
-/// * `$link_name` (optional) - A string literal specifying the actual name of the function in the library.
-/// * `$function` - The function signature to declare.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// link!("ntdll.dll" "system" fn NtQueryInformationProcess(
-///     process_handle: HANDLE,
-///     process_info_class: u32,
-///     process_info: *mut u8,
-///     process_info_length: u32,
-///     return_length: *mut u32
-/// ) -> u32);
-/// ```
-#[macro_export]
-macro_rules! link {
-    ($library:literal $abi:literal $($link_name:literal)? fn $($function:tt)*) => (
-        #[link(name = $library)]
-        unsafe extern $abi {
-            $(#[link_name=$link_name])?
-            pub(crate) fn $($function)*;
-        }
-    )
-}
-
-/// Prints output to the Windows console using `ConsoleWriter`.
-///
-/// # Example
-/// 
-/// ```rust,ignore
-/// println!("Hello, world!");
-/// println!("Value: {}", 42);
-/// ```
+/// Prints output to the Windows console.
 #[macro_export]
 macro_rules! println {
     ($($arg:tt)*) => {{

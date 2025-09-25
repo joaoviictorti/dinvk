@@ -1,19 +1,4 @@
 /// Computes a CRC32-based hash for a given string.
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A value representing the computed CRC32-based hash.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = crc32ba("example");
-/// println!("CRC32BA hash: {}", hash);
-/// ```
 pub fn crc32ba(string: &str) -> u32 {
     let mut u_hash = 0xFFFF_EFFF;
 
@@ -30,21 +15,6 @@ pub fn crc32ba(string: &str) -> u32 {
 }
 
 /// Computes a Jenkins hash (variant 3) for a given string.
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A `u32` value representing the computed Jenkins hash (variant 3).
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = jenkins3("example");
-/// println!("Jenkins3 hash: {}", hash);
-/// ```
 pub fn jenkins3(string: &str) -> u32 {
     let mut a: u32 = 0xDEAD_BEEF + string.len() as u32;
     let mut b: u32 = a;
@@ -112,21 +82,6 @@ pub fn jenkins3(string: &str) -> u32 {
 }
 
 /// Computes a Jenkins One-at-a-Time hash for a given string.
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A value representing the computed Jenkins hash.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = jenkins("example");
-/// println!("Jenkins hash: {}", hash);
-/// ```
 pub fn jenkins(string: &str) -> u32 {
     let mut hash = 0;
 
@@ -144,21 +99,6 @@ pub fn jenkins(string: &str) -> u32 {
 }
 
 /// Computes a DJB2 hash for a given string.
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A value representing the computed DJB2 hash.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = djb2("example");
-/// println!("DJB2 hash: {}", hash);
-/// ```
 pub fn djb2(string: &str) -> u32 {
     let mut hash = 5381u32;
 
@@ -170,21 +110,6 @@ pub fn djb2(string: &str) -> u32 {
 }
 
 /// Computes an FNV-1a hash for a given string.
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A value representing the computed FNV-1a hash.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = fnv1a("example");
-/// println!("FNV-1a hash: {}", hash);
-/// ```
 pub fn fnv1a(string: &str) -> u32 {
     const FNV_OFFSET_BASIS: u32 = 0x811C_9DC5;
     const FNV_PRIME: u32 = 0x0100_0193;
@@ -199,21 +124,6 @@ pub fn fnv1a(string: &str) -> u32 {
 }
 
 /// Computes a MurmurHash3 (32-bit) for a given string.
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A value representing the computed MurmurHash3.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = murmur3("example");
-/// println!("MurmurHash3 hash: {}", hash);
-/// ```
 pub fn murmur3(string: &str) -> u32 {
     const SEED: u32 = 0x9747B28C;
     const C1: u32 = 0xCC9E_2D51;
@@ -262,21 +172,6 @@ pub fn murmur3(string: &str) -> u32 {
 }
 
 /// Computes an SDBM hash for a given string.
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A value representing the computed SDBM hash.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = sdbm("example");
-/// println!("SDBM hash: {}", hash);
-/// ```
 pub fn sdbm(string: &str) -> u32 {
     let mut hash = 0u32;
 
@@ -291,21 +186,6 @@ pub fn sdbm(string: &str) -> u32 {
 }
 
 /// Computes a simple additive hash (Lose-Lose Hash) for a given string.
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A `u32` value representing the computed hash.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = loselose("example");
-/// println!("Lose hash: {}", hash);
-/// ```
 pub fn loselose(string: &str) -> u32 {
     let mut hash = 0u32;
     
@@ -317,21 +197,6 @@ pub fn loselose(string: &str) -> u32 {
 }
 
 /// Computes the PJW hash (Peter J. Weinberger's hash function).
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A `u32` value representing the computed PJW hash.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = pjw("example");
-/// println!("PJW hash: {:08x}", hash);
-/// ```
 pub fn pjw(string: &str) -> u32 {
     const BITS_IN_UNSIGNED_INT: u32 = 32;
     const THREE_QUARTERS: u32 = (BITS_IN_UNSIGNED_INT * 3) / 4;
@@ -353,21 +218,6 @@ pub fn pjw(string: &str) -> u32 {
 }
 
 /// JS Hash is a hashing algorithm created by Justin Sobel.
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A `u32` value representing the computed JS hash.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = js("example");
-/// println!("JS hash: {}", hash);
-/// ```
 pub fn js(string: &str) -> u32 {
     let mut hash = 1315423911u32;
 
@@ -379,21 +229,6 @@ pub fn js(string: &str) -> u32 {
 }
 
 /// Computes the AP Hash (Arash Partow's hash function).
-///
-/// # Arguments
-///
-/// * `string` - A reference to the string to hash.
-///
-/// # Returns
-///
-/// * A `u32` value representing the computed AP hash.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// let hash = ap("example");
-/// println!("AP hash: {}", hash);
-/// ```
 pub fn ap(string: &str) -> u32 {
     let mut hash = 0xAAAAAAAAu32;
 

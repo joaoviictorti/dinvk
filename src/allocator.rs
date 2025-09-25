@@ -3,7 +3,7 @@ use core::{
     alloc::{GlobalAlloc, Layout},
 };
 
-use crate::{data::*, link, GetProcessHeap};
+use super::{data::*, GetProcessHeap};
 
 /// A thread-safe wrapper for managing a Windows Heap.
 pub struct WinHeap;
@@ -63,5 +63,5 @@ unsafe impl GlobalAlloc for WinHeap {
     }
 }
 
-link!("ntdll" "system" fn RtlFreeHeap(heap: HANDLE, flags: u32, ptr: *mut c_void) -> i8);
-link!("ntdll" "system" fn RtlAllocateHeap(heap: HANDLE, flags: u32, size: usize) -> *mut c_void);
+windows_targets::link!("ntdll" "system" fn RtlFreeHeap(heap: HANDLE, flags: u32, ptr: *mut c_void) -> i8);
+windows_targets::link!("ntdll" "system" fn RtlAllocateHeap(heap: HANDLE, flags: u32, size: usize) -> *mut c_void);

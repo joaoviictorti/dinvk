@@ -9,15 +9,24 @@ use core::{
 };
 
 use obfstr::obfstr as s;
-use crate::{data::*, util::*};
-use crate::{
-    pe::PE,
-    functions::LoadLibraryA,
-    hash::{crc32ba, murmur3}
+use super::{data::*, pe::PE};
+use super::hash::{crc32ba, murmur3};
+use super::{
+    LoadLibraryA,
+    NtCurrentPeb
 };
 
 /// Stores the NTDLL address
 static NTDLL: spin::Once<u64> = spin::Once::new();
+
+/// Retrieves the base address of the `ntdll.dll` module.
+#[inline(always)]
+pub fn get_ntdll_address() -> *mut c_void {
+    *NTDLL.call_once(|| GetModuleHandle(
+        2788516083u32, 
+        Some(murmur3)) as u64
+    ) as *mut c_void
+}
 
 /// Resolves the base address of a module loaded in memory by name or hash.
 ///
@@ -32,11 +41,14 @@ static NTDLL: spin::Once<u64> = spin::Once::new();
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
 /// let base = GetModuleHandle("ntdll.dll", None);
 /// let base = GetModuleHandle(2788516083u32, Some(murmur3));
 /// ```
-pub fn GetModuleHandle<T>(module: T, hash: Option<fn(&str) -> u32>) -> HMODULE
+pub fn GetModuleHandle<T>(
+    module: T,
+    hash: Option<fn(&str) -> u32>
+) -> HMODULE
 where 
     T: ToString
 {
@@ -44,8 +56,9 @@ where
         let hash = hash.unwrap_or(crc32ba);
         let peb = NtCurrentPeb();
         let ldr_data = (*peb).Ldr;
-        let mut data_table_entry = (*ldr_data).InMemoryOrderModuleList.Flink as *const LDR_DATA_TABLE_ENTRY;
         let mut list_node = (*ldr_data).InMemoryOrderModuleList.Flink;
+        let mut data_table_entry = (*ldr_data).InMemoryOrderModuleList.Flink 
+            as *const LDR_DATA_TABLE_ENTRY;
 
         if module.to_string().is_empty() {
             return (*peb).ImageBaseAddress;
@@ -97,8 +110,6 @@ where
 
 /// Retrieves the address of an exported function from a loaded module.
 ///
-/// Supports lookup by name (`&str`), hash (`u32`), or ordinal (`u16`).
-///
 /// # Arguments
 ///
 /// * `h_module` - Handle to the loaded module (base address)
@@ -111,19 +122,25 @@ where
 ///
 /// # Examples
 ///
+/// ### Name
 /// ```rust,ignore
-/// let base = GetModuleHandle("ntdll.dll", None);
-/// let func = GetProcAddress(base, "NtProtectVirtualMemory", None);
+/// GetProcAddress(base, "NtProtectVirtualMemory", None);
 /// ```
 ///
+/// ### Hash
 /// ```rust,ignore
-/// let func = GetProcAddress(base, 2193297120u32, Some(murmur3));
+/// GetProcAddress(base, 2193297120u32, Some(murmur3));
 /// ```
 ///
+/// ### Ordinal
 /// ```rust,ignore
-/// let func = GetProcAddress(base, 473u32, None); // ordinal
+/// GetProcAddress(base, 473u32, None);
 /// ```
-pub fn GetProcAddress<T>(h_module: HMODULE, function: T, hash: Option<fn(&str) -> u32>) -> *mut c_void
+pub fn GetProcAddress<T>(
+    h_module: HMODULE,
+    function: T,
+    hash: Option<fn(&str) -> u32>
+) -> *mut c_void
 where 
     T: ToString,
 {
@@ -132,7 +149,7 @@ where
     }
 
     unsafe {
-        // Converts the module handle to a base address (usize)
+        // Converts the module handle to a base address
         let h_module = h_module as usize;
 
         // Initializes the PE parser from the base address
@@ -147,8 +164,8 @@ where
         let export_size = (*nt_header).OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT as usize].Size as usize;
 
         // Retrieving information from module names
-        let names = from_raw_parts((
-            h_module + (*export_dir).AddressOfNames as usize) as *const u32, 
+        let names = from_raw_parts(
+            (h_module + (*export_dir).AddressOfNames as usize) as *const u32, 
             (*export_dir).NumberOfNames as usize
         );
 
@@ -168,15 +185,13 @@ where
         let api_name = function.to_string();
 
         // Import By Ordinal
-        if let Ok(ordinal) = api_name.parse::<u32>() {
-            if ordinal <= 0xFFFF {
-                let ordinal = ordinal & 0xFFFF;
-                if ordinal < (*export_dir).Base || (ordinal >= (*export_dir).Base + (*export_dir).NumberOfFunctions) {
-                    return null_mut();
-                }
-
-                return (h_module + functions[ordinal as usize - (*export_dir).Base as usize] as usize) as *mut c_void;
+        if let Ok(ordinal) = api_name.parse::<u32>() && ordinal <= 0xFFFF {
+            let ordinal = ordinal & 0xFFFF;
+            if ordinal < (*export_dir).Base || (ordinal >= (*export_dir).Base + (*export_dir).NumberOfFunctions) {
+                return null_mut();
             }
+
+            return (h_module + functions[ordinal as usize - (*export_dir).Base as usize] as usize) as *mut c_void;
         }
 
         // Extract DLL name from export directory for forwarder resolution
@@ -211,7 +226,7 @@ where
     null_mut()
 }
 
-/// Resolves forwarded exports (e.g., `KERNEL32.SomeFunc`, or `api-ms-*`) to the actual implementation address.
+/// Resolves forwarded exports to the actual implementation address.
 ///
 /// # Arguments
 /// 
@@ -282,7 +297,10 @@ fn get_forwarded_address(
 /// # Returns
 /// 
 /// * A list of DLL names that implement the contract, or `None` if not found.
-fn resolve_api_set_map(host_name: &str, contract_name: &str) -> Option<Vec<String>> {
+fn resolve_api_set_map(
+    host_name: &str,
+    contract_name: &str
+) -> Option<Vec<String>> {
     unsafe {
         let peb = NtCurrentPeb();
         let map = (*peb).ApiSetMap;
@@ -342,115 +360,9 @@ fn resolve_api_set_map(host_name: &str, contract_name: &str) -> Option<Vec<Strin
     None
 }
 
-/// Retrieves the base address of the `ntdll.dll` module.
-#[inline(always)]
-pub fn get_ntdll_address() -> *mut c_void {
-    *NTDLL.call_once(|| GetModuleHandle(2788516083u32, Some(murmur3)) as u64) as *mut c_void
-}
-
-/// Retrieves a pointer to the Process Environment Block (PEB) of the current process.
-/// 
-/// # Returns
-/// 
-/// * Pointer to the PEB structure.
-#[inline(always)]
-pub fn NtCurrentPeb() -> *const PEB {
-    #[cfg(target_arch = "x86_64")]
-    return __readgsqword(0x60) as *const PEB;
-
-    #[cfg(target_arch = "x86")]
-    return __readfsdword(0x30) as *const PEB;
-
-    #[cfg(target_arch = "aarch64")]
-    return unsafe { *(__readx18(0x60) as *const *const PEB) };
-}
-
-/// Retrieves a pointer to the Thread Environment Block (TEB) of the current thread.
-/// 
-/// # Returns
-/// 
-/// * Pointer to the TEB structure.
-#[inline(always)]
-pub fn NtCurrentTeb() -> *const TEB {
-    #[cfg(target_arch = "x86_64")]
-    return __readgsqword(0x30) as *const TEB;
-
-    #[cfg(target_arch = "x86")]
-    return __readfsdword(0x18) as *const TEB;
-
-    #[cfg(target_arch = "aarch64")]
-    return unsafe { *(__readx18(0x30) as *const *const TEB) };
-}
-
-/// Reads a `u64` value from the GS segment at the specified offset.
-/// 
-/// # Arguments
-/// 
-/// * `offset` - The offset from the GS base where the value is located.
-/// 
-/// # Returns
-/// 
-/// * The value read from the GS segment.
-#[inline(always)]
-#[cfg(target_arch = "x86_64")]
-pub fn __readgsqword(offset: u64) -> u64 {
-    let out: u64;
-    unsafe {
-        core::arch::asm!(
-            "mov {}, gs:[{:e}]",
-            lateout(reg) out,
-            in(reg) offset,
-            options(nostack, pure, readonly),
-        );
-    }
-    out
-}
-
-/// Reads a `u32` value from the FS segment at the specified offset.
-/// 
-/// # Arguments
-/// 
-/// * `offset` - The offset from the FS base where the value is located.
-/// 
-/// # Returns
-/// 
-/// * The value read from the FS segment.
-#[inline(always)]
-#[cfg(target_arch = "x86")]
-pub fn __readfsdword(offset: u32) -> u32 {
-    let out: u32;
-    unsafe {
-        core::arch::asm!(
-            "mov {:e}, fs:[{:e}]",
-            lateout(reg) out,
-            in(reg) offset,
-            options(nostack, pure, readonly),
-        );
-    }
-
-    out
-}
-
-/// Reads a `u64` value from the x18 register at the specified offset.
-///
-/// # Arguments
-///
-/// * `offset` - The offset added to the value stored in x18.
-///
-/// # Returns
-///
-/// * The value read from x18 plus the given offset.
-#[inline(always)]
-#[cfg(target_arch = "aarch64")]
-pub fn __readx18(offset: u64) -> u64 {
-    let out: u64;
-    unsafe {
-        core::arch::asm!(
-            "mov {}, x18",
-            lateout(reg) out,
-            options(nostack, pure, readonly),
-        );
-    }
-
-    out + offset
+/// Returns the module name in uppercase without path or ".DLL" suffix.
+fn canonicalize_module(name: &str) -> String {
+    let file = name.rsplit(['\\', '/']).next().unwrap_or(name);
+    let upper = file.to_ascii_uppercase();
+    upper.trim_end_matches(".DLL").to_string()
 }

@@ -4,7 +4,7 @@ use core::{
     slice::from_raw_parts,
 };
 
-use crate::data::*;
+use super::data::*;
 
 /// Maps exported function addresses to their respective names.
 pub type Functions<'a> = BTreeMap<usize, &'a str>;
