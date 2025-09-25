@@ -11,9 +11,9 @@ fn main() -> Result<(), NTSTATUS> {
     // Memory allocation using a syscall
     let mut addr = null_mut::<c_void>();
     let mut size = (1 << 12) as usize;
-    let status = syscall!("NtAllocateVirtualMemory", -1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04).ok_or(-1)?;
+    let status = syscall!("NtAllocateVirtualMemory", -1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04)?;
     if !NT_SUCCESS(status) {
-        eprintln!("@ NtAllocateVirtualMemory Failed With Status: {}", status);
+        eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
         return Err(status);
     }
 

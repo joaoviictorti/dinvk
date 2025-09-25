@@ -22,7 +22,7 @@ fn main() {
     let mut size = 1 << 12;
     let status = NtAllocateVirtualMemory(-1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04);
     if !NT_SUCCESS(status) {
-        eprintln!("@ NtAllocateVirtualMemory Failed With Status: {}", status);
+        eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
         return;
     }
 

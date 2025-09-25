@@ -12,6 +12,6 @@ fn main() {
     let addr = GetProcAddress(kernel32, 3962820501u32, Some(jenkins));
     let addr = GetProcAddress(kernel32, 997, None);
 
-    println!("@ LoadLibraryA: {:?}", addr);
-    println!("@ KERNEL32: {:?}", kernel32);
+    println!("[+] LoadLibraryA: {:?}", addr);
+    println!("[+] KERNEL32: {:?}", kernel32);
 }
