@@ -17,8 +17,7 @@ use crate::{
 ///
 /// # Returns
 /// 
-/// * `Some(u16)` - The System Service Number (SSN) if resolved successfully.
-/// * `None` - If the function or its SSN could not be resolved.
+/// * The System Service Number (SSN) if resolved successfully.
 pub fn ssn(
     function_name: &str,
     module: *mut c_void,

@@ -25,8 +25,7 @@ use crate::{
 ///
 /// # Returns
 /// 
-/// * `Some(u16)` - The System Service Number (SSN) if resolved successfully.
-/// * `None` - If the function or its SSN could not be resolved.
+/// * The System Service Number (SSN) if resolved successfully.
 pub fn ssn(
     function_name: &str,
     module: *mut c_void,
@@ -144,8 +143,7 @@ pub fn ssn(
 ///
 /// # Returns
 ///
-/// * `Some(u64)` - The address of the `syscall` instruction if found.
-/// * `None` - If the `syscall` instruction cannot be located.
+/// * The address of the `syscall` instruction if found.
 pub fn get_syscall_address(address: *mut c_void) -> Option<u32> {
     unsafe {
         // Is Process wow64? (Here we will always use `ntdll.dll` to invoke)

@@ -6,7 +6,7 @@ use core::{
 
 use crate::{ 
     Dll,
-    hash::jenkins3, 
+    hash::{crc32ba, jenkins3}, 
     pe::PE, 
     syscall::{DOWN, RANGE, UP},
 };
@@ -25,8 +25,7 @@ use crate::{
 ///
 /// # Returns
 /// 
-/// * `Some(u16)` - The System Service Number (SSN) if resolved successfully.
-/// * `None` - If the function or its SSN could not be resolved.
+/// * The System Service Number (SSN) if resolved successfully.
 pub fn ssn(
     function_name: &str,
     module: *mut c_void,
@@ -160,8 +159,7 @@ pub fn ssn(
 ///
 /// # Returns
 ///
-/// * `Some(u64)` - The address of the `syscall` instruction if found.
-/// * `None` - If the `syscall` instruction cannot be located.
+/// * The address of the `syscall` instruction if found.
 pub fn get_syscall_address(mut address: *mut c_void) -> Option<u64> {
     unsafe {
         // Here we will use `win32u.dll` / `vertdll.dll` / `iumdll.dll`, 
@@ -169,7 +167,7 @@ pub fn get_syscall_address(mut address: *mut c_void) -> Option<u64> {
 
         let dll = Dll::current();
         if dll != Dll::Ntdll {
-            let mut h_module = GetModuleHandle(dll.hash(), Some(crate::hash::crc32ba));
+            let mut h_module = GetModuleHandle(dll.hash(), Some(crc32ba));
             if h_module.is_null() {
                 h_module = LoadLibraryA(dll.name());
             }

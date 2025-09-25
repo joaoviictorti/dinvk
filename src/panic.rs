@@ -39,7 +39,5 @@ pub fn dinvk_handler(info: &core::panic::PanicInfo) -> ! {
     }
 
     let _ = writeln!(console, "{} {}", s!("   panic message:"), info.message());
-
-    // @TODO - ExitProcess?
     loop {}
 }

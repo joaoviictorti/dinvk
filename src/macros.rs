@@ -52,24 +52,23 @@ macro_rules! syscall {
         // Get the address of the specified function in ntdll.dll
         let addr = GetProcAddress(ntdll, $function_name, None);
 
-        // Retrieve the SSN (System Service Number) for the target function
-        ssn($function_name, ntdll).and_then(|ssn| {
-            // Calculate the syscall address
-            get_syscall_address(addr).map(|syscall_addr| {
-                // Count the number of arguments provided
-                let cnt = {
-                    let mut cnt = 0;
-                    $(
-                        let _ = $y;
-                        cnt += 1;
-                    )+
-                    cnt
-                };
-                
-                // Perform the syscall using inline assembly (x86_64 / x86 and with support WOW64)
-                unsafe { asm::do_syscall(ssn, syscall_addr, cnt, $($y), +) }
-            })
-        })
+        // Retrieve the SSN for the target function
+        let ssn = match ssn($function_name, ntdll) {
+            Some(v) => v,
+            None => return Err(-1),
+        };
+
+        // Calculate the syscall address
+        let syscall_addr = match get_syscall_address(addr) {
+            Some(v) => v,
+            None => return Err(-2),
+        };
+
+        // Count the number of arguments provided
+        let cnt = 0u32 $(+ { let _ = &$y; 1u32 })+;
+        
+        // Perform the syscall using inline assembly
+        Ok::<_, i32>(unsafe { asm::do_syscall(ssn, syscall_addr, cnt, $($y),+) })
     }};
 }
 
