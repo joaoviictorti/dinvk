@@ -22,7 +22,6 @@ This tool is a Rust version of [DInvoke](https://github.com/TheWover/DInvoke), o
     - [Indirect syscall](#indirect-syscall)
     - [Redirecting Syscall Invocation to Different DLLs](#redirecting-syscall-invocation-to-different-dlls)
     - [Different Hash Methods for API Hashing](#different-hash-methods-for-api-hashing)
-    - [Library Proxy Loading](#library-proxy-loading)
     - [Tampered Syscalls Via Hardware BreakPoints](#tampered-syscalls-via-hardware-breakpoints)
     - [Support for #\[no\_std\] Environments](#support-for-no_std-environments)
 - [References](#references)
@@ -200,25 +199,6 @@ fn main() {
 }
 ```
 
-### Library Proxy Loading
-
-Allows DLLs to be loaded indirectly using an API call as an intermediary to clean the call stack and act as a proxy.
-
-```rs
-use dinvk::LdrProxy;
-
-fn main() {
-    // RtlQueueWorkItem
-    LdrProxy::new("xpsservices.dll").work();
-
-    // RtlCreateTimer
-    LdrProxy::new("xpsservices.dll").timer();
-
-    // RtlRegisterWait
-    LdrProxy::new("xpsservices.dll").register_wait();
-}
-```
-
 ### Tampered Syscalls Via Hardware BreakPoints
 
 Utilizes hardware breakpoints to manipulate syscall parameters before execution, bypassing security hooks.
@@ -226,7 +206,7 @@ Utilizes hardware breakpoints to manipulate syscall parameters before execution,
 * The library includes several API wrappers that leverage DInvoke and support hardware breakpoints to spoof syscall arguments dynamically.
 * These breakpoints modify syscall parameters after security monitoring tools inspect them but before the syscall executes, effectively bypassing detection.
 * Currently supporting x64, x86 and WoW64.
-* You can find the full list of wrapped functions in the [wrappers](/src/wrappers.rs) module.
+* You can find the full list of wrapped functions in the [wrappers](https://github.com/joaoviictorti/dinvk/tree/main/src/wrappers.rs) module.
 
 ```rs
 use dinvk::{
@@ -312,4 +292,4 @@ I want to express my gratitude to these projects that inspired me to create `din
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](/LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/joaoviictorti/dinvk/tree/main/LICENSE) file for details.
