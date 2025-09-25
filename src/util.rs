@@ -1,7 +1,5 @@
 use alloc::string::{String, ToString};
 
-///
-/// 
 pub(crate) fn canonicalize_module(name: &str) -> String {
     let file = name.rsplit(['\\', '/']).next().unwrap_or(name);
     let upper = file.to_ascii_uppercase();
