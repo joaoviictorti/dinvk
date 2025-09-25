@@ -1,7 +1,7 @@
 use std::{ffi::c_void, ptr::null_mut};
 use dinvk::{
-    data::{HANDLE, NTSTATUS},
-    NT_SUCCESS, syscall, Dll
+    Dll, NT_SUCCESS, syscall,
+    data::{HANDLE, NTSTATUS}, 
 };
 
 fn main() -> Result<(), NTSTATUS> {
@@ -14,7 +14,7 @@ fn main() -> Result<(), NTSTATUS> {
     let status = syscall!("NtAllocateVirtualMemory", -1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04)?;
     if !NT_SUCCESS(status) {
         eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
-        return Err(status);
+        return Ok(());
     }
 
     println!("{:?}", addr);
