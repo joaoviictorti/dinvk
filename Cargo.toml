@@ -37,27 +37,3 @@ targets = [
     "i686-pc-windows-msvc",
     "aarch64-pc-windows-msvc"
 ]
-
-[[example]]
-name = "dinvoke"
-path = "examples/dinvoke/main.rs"
-
-[[example]]
-name = "get_module_and_function"
-path = "examples/get_module_and_function/main.rs"
-
-[[example]]
-name = "hash"
-path = "examples/hash/main.rs"
-
-[[example]]
-name = "library_proxy"
-path = "examples/library_proxy/main.rs"
-
-[[example]]
-name = "syscall"
-path = "examples/syscall/main.rs"
-
-[[example]]
-name = "tampered_syscall"
-path = "examples/tampered_syscall/main.rs"

@@ -1,105 +1,5 @@
-//! # dinvk 🦀
-//!
-//! Dynamically invoke arbitrary code in Rust with full support for `#[no_std]` and multiple architectures:
-//! **x64**, **x86**, **WoW64**, **ARM64**.
-//!
-//! This crate is a Rust reimplementation of [DInvoke](https://github.com/TheWover/DInvoke) with extra features.
-//!
-//! ## Features
-//! - Dynamic API resolution (`dinvoke!`).
-//! - Indirect syscalls (Hells Gate / Halos Gate / Tartarus Gate).
-//! - Syscall redirection to other DLLs (e.g. `win32u.dll`, `vertdll.dll`).
-//! - PE parsing, proxy DLL loading.
-//! - Multiple hashing algorithms for API resolution.
-//! - `#[no_std]` compatibility.
-//!
-//! ## Examples
-//!
-//! ### 1. Dynamically Invoke Arbitrary Code
-//! ```rust
-//! use dinvk::{
-//!     data::HeapAllocFn,
-//!     dinvoke, GetModuleHandle,
-//!     GetProcessHeap
-//! };
-//!
-//! const HEAP_ZERO_MEMORY: u32 = 8;
-//!
-//! fn main() {
-//!     let kernel32 = GetModuleHandle("KERNEL32.DLL", None);
-//!     let addr = dinvoke!(
-//!         kernel32,
-//!         "HeapAlloc",
-//!         HeapAllocFn,
-//!         GetProcessHeap(),
-//!         HEAP_ZERO_MEMORY,
-//!         0x200
-//!     );
-//!
-//!     println!("[+] Address: {:?}", addr);
-//! }
-//! ```
-//!
-//! ### 2. Indirect Syscall
-//! ```rust
-//! use std::{ffi::c_void, ptr::null_mut};
-//! use dinvk::{NtCurrentProcess, NT_SUCCESS, syscall};
-//! use dinvk::data::NTSTATUS;
-//!
-//! fn main() -> Result<(), NTSTATUS> {
-//!     let mut addr = null_mut::<c_void>();
-//!     let mut size = 0x1000;
-//!
-//!     let status = syscall!(
-//!         "NtAllocateVirtualMemory",
-//!         NtCurrentProcess(),
-//!         &mut addr,
-//!         0,
-//!         &mut size,
-//!         0x3000,
-//!         0x40
-//!     ).ok_or(-1)?;
-//!
-//!     if !NT_SUCCESS(status) {
-//!         eprintln!("[-] NtAllocateVirtualMemory failed: {status:?}");
-//!         return Err(status);
-//!     }
-//!
-//!     println!("[+] Allocated at: {:?}", addr);
-//!     Ok(())
-//! }
-//! ```
-//!
-//! ### 3. Hashing APIs
-//! ```rust
-//! use dinvk::hash::*;
-//!
-//! println!("jenkins: {}", jenkins("dinvk"));
-//! println!("djb2:    {}", djb2("dinvk"));
-//! println!("fnv1a:   {}", fnv1a("dinvk"));
-//! ```
-//!
-//! ### 4. Proxy DLL Loading
-//! ```rust
-//! use dinvk::LdrProxy;
-//!
-//! // Use RtlQueueWorkItem to indirectly load DLL
-//! LdrProxy::new("xpsservices.dll").work();
-//!
-//! // Or RtlCreateTimer
-//! LdrProxy::new("xpsservices.dll").timer();
-//!
-//! // Or RtlRegisterWait
-//! LdrProxy::new("xpsservices.dll").register_wait();
-//! ```
-//! 
-//! # More Information
-//!
-//! For updates, usage guides, and examples, visit the [repository].
-//!
-//! [repository]: https://github.com/joaoviictorti/dinvk
-
 #![no_std]
+#![doc = include_str!("../README.md")]
 #![allow(non_snake_case, non_camel_case_types)]
 #![allow(
     clippy::too_many_arguments,
@@ -137,9 +37,11 @@ mod functions;
 mod macros;
 mod module;
 mod syscall;
-mod utils;
+mod util;
+mod console;
 
-pub use utils::*;
 pub use syscall::*;
 pub use functions::*;
-pub use module::{*, ldr::*};
+pub use module::*;
+pub use util::{shuffle};
+pub use console::ConsoleWriter;

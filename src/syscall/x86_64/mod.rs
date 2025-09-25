@@ -3,13 +3,13 @@ use core::{
     ptr::read, 
     slice::from_raw_parts,
 };
+
 use crate::{ 
     Dll,
     hash::jenkins3, 
     pe::PE, 
     syscall::{DOWN, RANGE, UP},
 };
-
 use crate::{
     LoadLibraryA, 
     GetModuleHandle, 
@@ -38,8 +38,8 @@ pub fn ssn(
         let module = module as usize;
         
         // Retrieving information from module names
-        let names = from_raw_parts((
-            module + (*export_dir).AddressOfNames as usize) as *const u32, 
+        let names = from_raw_parts(
+            (module + (*export_dir).AddressOfNames as usize) as *const u32, 
             (*export_dir).NumberOfNames as usize
         );
 

@@ -1,4 +1,4 @@
-use dinvk::{resolve_api_set_map, GetModuleHandle, GetProcAddress, LoadLibraryA};
+use dinvk::{GetModuleHandle, GetProcAddress, LoadLibraryA};
 
 #[test]
 fn test_modules() {
@@ -16,11 +16,6 @@ fn test_function() {
 }
 
 #[test]
-fn test_api_set_map() {
-    println!("{:?}", resolve_api_set_map("kernel32.dll", "api-ms-win-core-processthreads-l1-1"));
-}
-
-#[test]
 fn test_forwarded() {
     let kernel32 = GetModuleHandle("KERNEL32.dll", None);
     println!("SetIoRingCompletionEvent: {:x?}", GetProcAddress(kernel32, "SetIoRingCompletionEvent", None));
@@ -28,6 +23,7 @@ fn test_forwarded() {
     println!("SetProcessDefaultCpuSetMasks: {:x?}", GetProcAddress(kernel32, "SetProcessDefaultCpuSetMasks", None));
     println!("SetDefaultDllDirectories: {:x?}", GetProcAddress(kernel32, "SetDefaultDllDirectories", None));
     println!("SetProcessDefaultCpuSets: {:x?}", GetProcAddress(kernel32, "SetProcessDefaultCpuSets", None));
+    println!("InitializeProcThreadAttributeList : {:x?}", GetProcAddress(kernel32, "InitializeProcThreadAttributeList", None));
 
     let advapi32 = LoadLibraryA("advapi32.dll");
     println!("SystemFunction028: {:x?}", GetProcAddress(advapi32, "SystemFunction028", None));
