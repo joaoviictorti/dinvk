@@ -66,19 +66,17 @@ use dinvk::{
 
 const HEAP_ZERO_MEMORY: u32 = 8u32;
 
-fn main() {
-    let kernel32 = GetModuleHandle("KERNEL32.DLL", None);
-    let addr = dinvoke!(
-        kernel32,
-        "HeapAlloc",
-        HeapAllocFn,
-        GetProcessHeap(),
-        HEAP_ZERO_MEMORY,
-        0x200
-    );
-    
-    println!("[+] Address: {:?}", addr);
-}
+let kernel32 = GetModuleHandle("KERNEL32.DLL", None);
+let addr = dinvoke!(
+    kernel32,
+    "HeapAlloc",
+    HeapAllocFn,
+    GetProcessHeap(),
+    HEAP_ZERO_MEMORY,
+    0x200
+);
+
+println!("[+] Address: {:?}", addr);
 ```
 
 ### Retrieving Module Addresses and Exported APIs
@@ -91,16 +89,14 @@ Retrieves the base address of a module and resolves exported APIs using differen
 ```rust
 use dinvk::{hash::jenkins, GetModuleHandle, GetProcAddress};
 
-fn main() {
-    // Retrieving module address via string and hash
-    let kernel32 = GetModuleHandle("KERNEL32.DLL", None);
-    let kernel32 = GetModuleHandle(3425263715u32, Some(jenkins));
+// Retrieving module address via string and hash
+let kernel32 = GetModuleHandle("KERNEL32.DLL", None);
+let kernel32 = GetModuleHandle(3425263715u32, Some(jenkins));
 
-    // Retrieving exported API address via string, ordinal and hash
-    let addr = GetProcAddress(kernel32, "LoadLibraryA", None);
-    let addr = GetProcAddress(kernel32, 3962820501u32, Some(jenkins));
-    let addr = GetProcAddress(kernel32, 997, None);
-}
+// Retrieving exported API address via string, ordinal and hash
+let addr = GetProcAddress(kernel32, "LoadLibraryA", None);
+let addr = GetProcAddress(kernel32, 3962820501u32, Some(jenkins));
+let addr = GetProcAddress(kernel32, 997, None);
 ```
 
 ### Indirect syscall
@@ -113,24 +109,22 @@ Executes syscalls indirectly, bypassing user-mode API hooks and security monitor
 ```rust
 use std::{ffi::c_void, ptr::null_mut};
 use dinvk::{
-    data::{HANDLE, NTSTATUS},
-    NT_SUCCESS, syscall, Dll
+    data::HANDLE,
+    NT_SUCCESS, 
+    syscall, 
+    Dll
 };
 
-fn main() -> Result<(), NTSTATUS> {
-    // Memory allocation using a syscall
-    let mut addr = null_mut::<c_void>();
-    let mut size = (1 << 12) as usize;
-    let status = syscall!("NtAllocateVirtualMemory", -1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04)?;
-    if !NT_SUCCESS(status) {
-        eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
-        return Err(status);
-    }
-
-    println!("[+] Address: {:?}", addr);
-
-    Ok(())
+// Memory allocation using a syscall
+let mut addr = null_mut::<c_void>();
+let mut size = (1 << 12) as usize;
+let status = syscall!("NtAllocateVirtualMemory", -1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04)?;
+if !NT_SUCCESS(status) {
+    eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
+    return Err(status);
 }
+
+println!("[+] Address: {:?}", addr);
 ```
 
 ## Redirecting Syscall Invocation to Different DLLs
@@ -147,20 +141,16 @@ use dinvk::{
     NT_SUCCESS
 };
 
-fn main() -> Result<(), NTSTATUS> {
-    // Alternatively, you can use Dll::Vertdll or Dll::Iumdll on x86_64
-    Dll::use_dll(Dll::Win32u);
+// Alternatively, you can use Dll::Vertdll or Dll::Iumdll on x86_64
+Dll::use_dll(Dll::Win32u);
 
-    // Memory allocation using a syscall
-    let mut addr = null_mut::<c_void>();
-    let mut size = (1 << 12) as usize;
-    let status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess(), &mut addr, 0, &mut size, 0x3000, 0x04)?;
-    if !NT_SUCCESS(status) {
-        eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
-        return Err(status);
-    }
-
-    Ok(())
+// Memory allocation using a syscall
+let mut addr = null_mut::<c_void>();
+let mut size = (1 << 12) as usize;
+let status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess(), &mut addr, 0, &mut size, 0x3000, 0x04)?;
+if !NT_SUCCESS(status) {
+    eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
+    return Err(status);
 }
 ```
 
@@ -175,19 +165,17 @@ Supports various hashing algorithms for API resolution, improving stealth and fl
 ```rust
 use dinvk::hash::*;
 
-fn main() {
-    println!("{}", jenkins("dinvk"));
-    println!("{}", jenkins3("dinvk"));
-    println!("{}", ap("dinvk"));
-    println!("{}", js("dinvk"));
-    println!("{}", murmur3("dinvk"));
-    println!("{}", fnv1a("dinvk"));
-    println!("{}", djb2("dinvk"));
-    println!("{}", crc32ba("dinvk"));
-    println!("{}", loselose("dinvk"));
-    println!("{}", pjw("dinvk"));
-    println!("{}", sdbm("dinvk"));
-}
+println!("{}", jenkins("dinvk"));
+println!("{}", jenkins3("dinvk"));
+println!("{}", ap("dinvk"));
+println!("{}", js("dinvk"));
+println!("{}", murmur3("dinvk"));
+println!("{}", fnv1a("dinvk"));
+println!("{}", djb2("dinvk"));
+println!("{}", crc32ba("dinvk"));
+println!("{}", loselose("dinvk"));
+println!("{}", pjw("dinvk"));
+println!("{}", sdbm("dinvk"));
 ```
 
 ### Tampered Syscalls Via Hardware BreakPoints
@@ -214,24 +202,22 @@ use dinvk::{
     RemoveVectoredExceptionHandler,
 };
 
-fn main() {
-    // Enabling breakpoint hardware
-    set_use_breakpoint(true);
-    let handle = AddVectoredExceptionHandler(0, Some(veh_handler));
+// Enabling breakpoint hardware
+set_use_breakpoint(true);
+let handle = AddVectoredExceptionHandler(0, Some(veh_handler));
 
-    // Allocating memory and using breakpoint hardware
-    let mut addr = std::ptr::null_mut();
-    let mut size = 1 << 12;
-    let status = NtAllocateVirtualMemory(-1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04);
-    if !NT_SUCCESS(status) {
-        eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
-        return;
-    }
-
-    // Disabling breakpoint hardware
-    set_use_breakpoint(false);
-    RemoveVectoredExceptionHandler(handle);
+// Allocating memory and using breakpoint hardware
+let mut addr = std::ptr::null_mut();
+let mut size = 1 << 12;
+let status = NtAllocateVirtualMemory(-1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04);
+if !NT_SUCCESS(status) {
+    eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
+    return;
 }
+
+// Disabling breakpoint hardware
+set_use_breakpoint(false);
+RemoveVectoredExceptionHandler(handle);
 ```
 
 ### Support for no_std Environments
@@ -247,7 +233,7 @@ dinvk = { version = "<version>", features = ["alloc", "panic"] }
 
 * Running in `#[no_std]` Mode.
 
-```rust
+```rust,non_run
 #![no_std]
 #![no_main]
 
