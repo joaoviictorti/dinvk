@@ -13,7 +13,6 @@ This tool is a Rust version of [DInvoke](https://github.com/TheWover/DInvoke), o
 
 ## Table of Contents
 
-- [Table of Contents](#table-of-contents)
 - [Features](#features)
 - [Getting started](#getting-started)
 - [Usage](#usage)
