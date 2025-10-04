@@ -23,7 +23,7 @@ This tool is a Rust version of [DInvoke](https://github.com/TheWover/DInvoke), o
     - [Redirecting Syscall Invocation to Different DLLs](#redirecting-syscall-invocation-to-different-dlls)
     - [Different Hash Methods for API Hashing](#different-hash-methods-for-api-hashing)
     - [Tampered Syscalls Via Hardware BreakPoints](#tampered-syscalls-via-hardware-breakpoints)
-    - [Support for #\[no\_std\] Environments](#support-for-no_std-environments)
+    - [Support for no_std Environments](#support-for-no_std-environments)
 - [References](#references)
 - [License](#license)
 
@@ -57,7 +57,7 @@ Allows resolving and calling a function dynamically at runtime, avoiding static 
 * This example demonstrates the dynamic invocation of arbitrary code using `dinvoke!`, resolving function addresses at runtime without direct linking. In this case, `HeapAlloc` is dynamically called to allocate memory.
 * Using this macro is beneficial if you want to avoid having APIs directly listed in the `Import Address Table (IAT)` of your PE file.
 
-```rs
+```rust
 use dinvk::{
     data::HeapAllocFn, 
     dinvoke, GetModuleHandle,
@@ -88,7 +88,7 @@ Retrieves the base address of a module and resolves exported APIs using differen
 * In this example, the address of the `KERNEL32` module is retrieved using both a string and a hash (Jenkins hash).
 * Then, the `LoadLibrary` function address is resolved using the same methods, with an additional example using an ordinal number.
 
-```rs
+```rust
 use dinvk::{hash::jenkins, GetModuleHandle, GetProcAddress};
 
 fn main() {
@@ -110,7 +110,7 @@ Executes syscalls indirectly, bypassing user-mode API hooks and security monitor
 * Currently supporting x64, x86 and WoW64.
 * It uses techniques such as Hells Gate, Halos Gate, and Tartarus Gate to dynamically locate the System Service Number (SSN) and invoke the syscall indirectly.
 
-```rs
+```rust
 use std::{ffi::c_void, ptr::null_mut};
 use dinvk::{
     data::{HANDLE, NTSTATUS},
@@ -139,7 +139,7 @@ By default, syscalls in Windows are invoked via `ntdll.dll`. However, on x86_64 
 
 The code below demonstrates how to invoke `NtAllocateVirtualMemory` using different DLLs to execute the syscall:
 
-```rs
+```rust
 use std::{ffi::c_void, ptr::null_mut};
 use dinvk::{
     data::{HANDLE, NTSTATUS}, 
@@ -172,7 +172,7 @@ Supports various hashing algorithms for API resolution, improving stealth and fl
 
 * Currently, the library only supports 32-bit hashes for API lookup.
 
-```rs
+```rust
 use dinvk::hash::*;
 
 fn main() {
@@ -199,7 +199,7 @@ Utilizes hardware breakpoints to manipulate syscall parameters before execution,
 * Currently supporting x64, x86 and WoW64.
 * You can find the full list of wrapped functions in the [wrappers](https://github.com/joaoviictorti/dinvk/tree/main/src/wrappers.rs) module.
 
-```rs
+```rust
 use dinvk::{
     data::HANDLE,
     breakpoint::{
@@ -234,7 +234,7 @@ fn main() {
 }
 ```
 
-### Support for #[no_std] Environments
+### Support for no_std Environments
 
 Enables `#[no_std]` compatibility for environments without the Rust standard library.
 
@@ -247,7 +247,7 @@ dinvk = { version = "<version>", features = ["alloc", "panic"] }
 
 * Running in `#[no_std]` Mode.
 
-```rs
+```rust
 #![no_std]
 #![no_main]
 
