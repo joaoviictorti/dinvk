@@ -1,10 +1,10 @@
 use std::{ffi::c_void, ptr::null_mut};
 use dinvk::{
     Dll, NT_SUCCESS, syscall,
-    data::{HANDLE, NTSTATUS}, 
+    data::HANDLE, 
 };
 
-fn main() -> Result<(), NTSTATUS> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Alternatively, you can use Dll::Vertdll or Dll::Iumdll on x86_64
     Dll::use_dll(Dll::Iumdll);
 
