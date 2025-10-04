@@ -1,3 +1,5 @@
+//! Runtime hash functions.
+
 /// Computes a CRC32-based hash for a given string.
 pub fn crc32ba(string: &str) -> u32 {
     let mut u_hash = 0xFFFF_EFFF;

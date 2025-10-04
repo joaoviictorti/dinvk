@@ -1,3 +1,5 @@
+//! Hardware breakpoint management utilities.
+
 use core::ffi::c_void;
 use core::ptr::addr_of_mut;
 use core::sync::atomic::{Ordering, AtomicBool};
@@ -34,7 +36,7 @@ pub fn set_use_breakpoint(enabled: bool) {
 ///
 /// # Returns
 /// 
-/// * If breakpoints are enabled.
+/// If breakpoints are enabled.
 #[inline(always)]
 pub fn is_breakpoint_enabled() -> bool {
     USE_BREAKPOINT.load(Ordering::SeqCst)
@@ -79,7 +81,7 @@ pub(crate) fn set_breakpoint<T: Into<u64>>(address: T) {
 ///
 /// # Returns
 /// 
-/// * The updated value of the `DR7` register.
+/// The updated value of the `DR7` register.
 fn set_dr7_bits<T: Into<u64>>(current: T, start_bit: i32, nmbr_bits: i32, new_bit: u64) -> u64 {
     let current = current.into();
     let mask = (1u64 << nmbr_bits) - 1;

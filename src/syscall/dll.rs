@@ -30,15 +30,6 @@ impl Dll {
     /// # Arguments
     ///
     /// * `dll` - The [`Dll`] variant to use as the new default.
-    ///
-    /// # Example
-    ///
-    /// ```rust,ignore
-    /// use dinvk::Dll;
-    ///
-    /// // Switch to win32u.dll for GUI-related syscalls
-    /// Dll::use_dll(Dll::Win32u);
-    /// ```
     pub fn use_dll(dll: Dll) {
         DEFAULT_DLL.store(dll as usize, Ordering::Relaxed);
     }

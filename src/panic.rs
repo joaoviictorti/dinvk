@@ -1,3 +1,5 @@
+//! Custom panic handler support.
+
 use core::{fmt::Write, panic::PanicInfo};
 use obfstr::obfstr as s;
 use super::ConsoleWriter;

@@ -1,3 +1,5 @@
+//! Structures and types used across the library.
+
 mod types;
 mod structs;
 mod constant;

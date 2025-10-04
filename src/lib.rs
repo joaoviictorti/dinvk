@@ -10,24 +10,16 @@
 
 extern crate alloc;
 
-/// Structures and types used across the library.
 pub mod data;
-
-/// Runtime hash functions.
 pub mod hash;
-
-/// PE Parsing
 pub mod pe;
 
-/// Hardware breakpoint management utilities (only for x86/x86_64 targets).
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 pub mod breakpoint;
 
-/// Custom panic handler support.
 #[cfg(feature = "panic")]
 pub mod panic;
 
-/// Heap allocator using Windows native APIs.
 #[cfg(feature = "alloc")]
 pub mod allocator;
 

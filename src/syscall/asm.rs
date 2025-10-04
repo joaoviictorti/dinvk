@@ -1,4 +1,4 @@
-//! Reference: https://github.com/janoglezcampos/rust_syscalls
+//! Reference: <https://github.com/janoglezcampos/rust_syscalls>
 
 // Implementation in asm to perform indirect syscall (`x64`)
 #[cfg(target_arch = "x86_64")]

@@ -20,7 +20,7 @@ impl Write for ConsoleWriter {
     ///
     /// # Returns
     /// 
-    /// * Indicates whether the write operation was successful.
+    /// Indicates whether the write operation was successful.
     fn write_str(&mut self, s: &str) -> fmt::Result {       
         // Convert the string into a byte buffer
         let buffer = Vec::from(s.as_bytes());

@@ -9,9 +9,9 @@
 /// 
 /// # Example
 /// 
-/// ```rust,ignore
+/// ```
 /// let ntdll = get_ntdll_address();
-/// let result = dinvoke!(ntdll, "NtQueryInformationProcess", extern "system" fn(...) -> u32, arg1, arg2);
+/// let result = dinvoke!(ntdll, "NtQueryInformationProcess", extern "system" fn(...) -> u32, ...);
 /// ``` 
 #[macro_export]
 macro_rules! dinvoke {
@@ -37,29 +37,27 @@ macro_rules! dinvoke {
 ///
 /// # Example
 ///
-/// ```rust,ignore
-/// syscall!("NtQueryInformationProcess", process_handle, process_info_class, process_info, process_info_length, return_length);
+/// ```
+/// syscall!("NtQueryInformationProcess", ...);
 /// ```
 #[macro_export]
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]
 macro_rules! syscall {
     ($function_name:expr, $($y:expr), +) => {{
-        use $crate::*;
-
         // Retrieve the address of ntdll.dll
-        let ntdll = get_ntdll_address();
+        let ntdll = $crate::get_ntdll_address();
 
         // Get the address of the specified function in ntdll.dll
-        let addr = GetProcAddress(ntdll, $function_name, None);
+        let addr = $crate::GetProcAddress(ntdll, $function_name, None);
 
         // Retrieve the SSN for the target function
-        let ssn = match ssn($function_name, ntdll) {
+        let ssn = match $crate::ssn($function_name, ntdll) {
             Some(v) => v,
             None => return Err(-1),
         };
 
         // Calculate the syscall address
-        let syscall_addr = match get_syscall_address(addr) {
+        let syscall_addr = match $crate::get_syscall_address(addr) {
             Some(v) => v,
             None => return Err(-2),
         };
@@ -68,7 +66,7 @@ macro_rules! syscall {
         let cnt = 0u32 $(+ { let _ = &$y; 1u32 })+;
         
         // Perform the syscall using inline assembly
-        Ok::<_, i32>(unsafe { asm::do_syscall(ssn, syscall_addr, cnt, $($y),+) })
+        Ok::<_, i32>(unsafe { $crate::asm::do_syscall(ssn, syscall_addr, cnt, $($y),+) })
     }};
 }
 

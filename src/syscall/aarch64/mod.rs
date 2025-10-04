@@ -17,14 +17,17 @@ use super::{
 ///
 /// # Returns
 /// 
-/// * The System Service Number (SSN) if resolved successfully.
+/// The System Service Number (SSN) if resolved successfully.
 pub fn ssn(
     function_name: &str,
     module: *mut c_void,
 ) -> Option<u16> {
     unsafe {
         // Recovering the export directory and hashing the module 
-        let export_dir = PE::parse(module).exports().directory()?;
+        let export_dir = PE::parse(module)
+            .exports()
+            .directory()?;
+        
         let hash = jenkins3(function_name);
         let module = module as usize;
         

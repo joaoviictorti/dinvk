@@ -37,7 +37,7 @@ pub fn get_ntdll_address() -> *mut c_void {
 ///
 /// # Returns
 ///
-/// * Returns the module's base address.
+/// The module's base address.
 ///
 /// # Examples
 ///
@@ -118,7 +118,7 @@ where
 ///
 /// # Returns
 ///
-/// * Pointer to the resolved function
+/// Pointer to the resolved function
 ///
 /// # Examples
 ///
@@ -238,7 +238,7 @@ where
 ///
 /// # Returns
 /// 
-/// * Resolved address or original address if not a forwarder.
+/// Resolved address or original address if not a forwarder.
 fn get_forwarded_address(
     module: &str,
     address: *mut c_void,
@@ -296,7 +296,7 @@ fn get_forwarded_address(
 ///
 /// # Returns
 /// 
-/// * A list of DLL names that implement the contract, or `None` if not found.
+/// A list of DLL names that implement the contract, or `None` if not found.
 fn resolve_api_set_map(
     host_name: &str,
     contract_name: &str

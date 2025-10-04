@@ -1,3 +1,5 @@
+//! PE Parsing.
+
 use alloc::collections::BTreeMap;
 use core::{
     ffi::{c_void, CStr},

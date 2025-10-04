@@ -272,7 +272,6 @@ pub struct ARM64_NT_NEON128_0 {
     pub High: i64,
 }
 
-/// CONTEXT structure representing x86_64
 #[repr(C)]
 #[repr(align(16))]
 #[derive(Clone, Copy)]

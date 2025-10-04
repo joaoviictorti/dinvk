@@ -1,3 +1,5 @@
+//! Heap allocator using Windows native APIs.
+
 use core::{
     ptr::null_mut, ffi::c_void,
     alloc::{GlobalAlloc, Layout},
@@ -25,7 +27,7 @@ unsafe impl GlobalAlloc for WinHeap {
     ///
     /// # Returns
     ///
-    /// * A pointer to the allocated memory, or `ptr::null_mut()` if allocation fails.
+    /// A pointer to the allocated memory
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let heap = self.heap();
         let size = layout.size();
@@ -52,7 +54,7 @@ unsafe impl GlobalAlloc for WinHeap {
     /// 
     /// # Notes
     /// 
-    /// * If `ptr` is null, this function does nothing.
+    /// If `ptr` is null, this function does nothing.
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         if ptr.is_null() {
             return;

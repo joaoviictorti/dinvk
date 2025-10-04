@@ -4,15 +4,15 @@ use core::{
     slice::from_raw_parts,
 };
 
-use super::{ 
+use crate::{ 
     Dll,
-    hash::jenkins3, 
-    pe::PE, 
-    syscall::{DOWN, RANGE, UP},
+    pe::PE,
+    hash::{crc32ba, jenkins3}, 
+    syscall::{DOWN, RANGE, UP}
 };
-use super::{
-    LoadLibraryA, 
-    GetModuleHandle, 
+use crate::{
+    LoadLibraryA,
+    GetModuleHandle,
     GetProcAddress
 };
 
@@ -25,14 +25,17 @@ use super::{
 ///
 /// # Returns
 /// 
-/// * The System Service Number (SSN) if resolved successfully.
+/// The System Service Number (SSN) if resolved successfully.
 pub fn ssn(
     function_name: &str,
     module: *mut c_void,
 ) -> Option<u16> {
     unsafe {
         // Recovering the export directory and hashing the module 
-        let export_dir = PE::parse(module).exports().directory()?;
+        let export_dir = PE::parse(module)
+            .exports()
+            .directory()?;
+        
         let hash = jenkins3(function_name);
         let module = module as usize;
 
@@ -163,7 +166,7 @@ pub fn get_syscall_address(address: *mut c_void) -> Option<u32> {
         // Here we will use `win32u.dll`, in case ntdll is not chosen to invoke the syscall
         let dll = Dll::current();
         if dll != Dll::Ntdll {
-            let mut h_module = GetModuleHandle(dll.hash(), Some(super::hash::crc32ba));
+            let mut h_module = GetModuleHandle(dll.hash(), Some(crc32ba));
             if h_module.is_null() {
                 h_module = LoadLibraryA(dll.name());
             }
