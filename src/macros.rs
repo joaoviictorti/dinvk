@@ -33,7 +33,7 @@ macro_rules! dinvoke {
 /// # Arguments
 ///
 /// * `$function_name` - A string slice representing the name of the syscall function.
-/// * `$($args:expr),+` - A variadic list of arguments to pass to the syscall.
+/// * `$($y:expr), +` - A variadic list of arguments to pass to the syscall.
 ///
 /// # Example
 ///
@@ -49,24 +49,25 @@ macro_rules! syscall {
 
         // Get the address of the specified function in ntdll.dll
         let addr = $crate::GetProcAddress(ntdll, $function_name, None);
+        if addr.is_null() {
+            return Err(concat!("function not found: ", $function_name).into());
+        }
 
         // Retrieve the SSN for the target function
-        let ssn = match $crate::ssn($function_name, ntdll) {
-            Some(v) => v,
-            None => return Err(-1),
-        };
+        let ssn = $crate::ssn($function_name, ntdll)
+            .ok_or(concat!("ssn not found: ", $function_name))?;
 
         // Calculate the syscall address
-        let syscall_addr = match $crate::get_syscall_address(addr) {
-            Some(v) => v,
-            None => return Err(-2),
-        };
+        let syscall_addr = $crate::get_syscall_address(addr)
+            .ok_or(concat!("invalid syscall stub: ", $function_name))?;
 
         // Count the number of arguments provided
         let cnt = 0u32 $(+ { let _ = &$y; 1u32 })+;
         
         // Perform the syscall using inline assembly
-        Ok::<_, i32>(unsafe { $crate::asm::do_syscall(ssn, syscall_addr, cnt, $($y),+) })
+        Ok::<_, &'static str>(
+            unsafe { $crate::asm::do_syscall(ssn, syscall_addr, cnt, $($y),+) }
+        )
     }};
 }
 
