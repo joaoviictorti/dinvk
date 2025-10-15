@@ -117,13 +117,13 @@ use dinvk::{
 // Memory allocation using a syscall
 let mut addr = null_mut::<c_void>();
 let mut size = (1 << 12) as usize;
-let status = syscall!("NtAllocateVirtualMemory", -1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04)?;
+let status = syscall!("NtAllocateVirtualMemory", -1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04)
+    .ok_or("syscall resolution failed")?;
+
 if !NT_SUCCESS(status) {
     eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
-    return Err(status);
+    return Ok(());
 }
-
-println!("[+] Address: {:?}", addr);
 ```
 
 ## Redirecting Syscall Invocation to Different DLLs
@@ -146,10 +146,12 @@ Dll::use_dll(Dll::Win32u);
 // Memory allocation using a syscall
 let mut addr = null_mut::<c_void>();
 let mut size = (1 << 12) as usize;
-let status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess(), &mut addr, 0, &mut size, 0x3000, 0x04)?;
+let status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess(), &mut addr, 0, &mut size, 0x3000, 0x04)
+    .ok_or("syscall resolution failed")?;
+
 if !NT_SUCCESS(status) {
     eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
-    return Err(status);
+    return Ok(());
 }
 ```
 
@@ -211,7 +213,7 @@ let mut size = 1 << 12;
 let status = NtAllocateVirtualMemory(-1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04);
 if !NT_SUCCESS(status) {
     eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
-    return;
+    return Ok(());
 }
 
 // Disabling breakpoint hardware
