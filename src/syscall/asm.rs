@@ -1,6 +1,5 @@
 //! Reference: <https://github.com/janoglezcampos/rust_syscalls>
 
-// Implementation in asm to perform indirect syscall (`x64`)
 #[cfg(target_arch = "x86_64")]
 core::arch::global_asm!("
 .global do_syscall
@@ -39,7 +38,6 @@ skip:
     jmp rcx
 ");
 
-// Implementation in asm to perform indirect syscall (`x86`)
 #[cfg(target_arch = "x86")]
 core::arch::global_asm!("
 .global _do_syscall

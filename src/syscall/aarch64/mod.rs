@@ -3,7 +3,7 @@ use core::{
     ptr::read, 
     slice::from_raw_parts,
 };
-use super::{
+use crate::{
     hash::jenkins3, 
     pe::PE,
 };
@@ -18,10 +18,7 @@ use super::{
 /// # Returns
 /// 
 /// The System Service Number (SSN) if resolved successfully.
-pub fn ssn(
-    function_name: &str,
-    module: *mut c_void,
-) -> Option<u16> {
+pub fn ssn(function_name: &str, module: *mut c_void) -> Option<u16> {
     unsafe {
         // Recovering the export directory and hashing the module 
         let export_dir = PE::parse(module)

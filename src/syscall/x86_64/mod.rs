@@ -7,7 +7,7 @@ use core::{
 use crate::{ 
     Dll,
     pe::PE,
-    hash::{crc32ba, jenkins3}, 
+    hash::jenkins3, 
     syscall::{DOWN, RANGE, UP}
 };
 use crate::{
@@ -26,10 +26,7 @@ use crate::{
 /// # Returns
 /// 
 /// The System Service Number (SSN) if resolved successfully.
-pub fn ssn(
-    function_name: &str,
-    module: *mut c_void,
-) -> Option<u16> {
+pub fn ssn(function_name: &str, module: *mut c_void) -> Option<u16> {
     unsafe {
         // Recovering the export directory and hashing the module 
         let export_dir = PE::parse(module)
@@ -162,14 +159,14 @@ pub fn ssn(
 ///
 /// # Returns
 ///
-/// * The address of the `syscall` instruction if found.
+/// The address of the `syscall` instruction if found.
 pub fn get_syscall_address(mut address: *mut c_void) -> Option<u64> {
     unsafe {
         // Here we will use `win32u.dll` / `vertdll.dll` / `iumdll.dll`, 
         // in case ntdll is not chosen to invoke the syscall
         let dll = Dll::current();
         if dll != Dll::Ntdll {
-            let mut h_module = GetModuleHandle(dll.hash(), Some(crc32ba));
+            let mut h_module = GetModuleHandle(dll.name(), None);
             if h_module.is_null() {
                 h_module = LoadLibraryA(dll.name());
             }

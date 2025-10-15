@@ -7,7 +7,7 @@ use core::{
 use crate::{ 
     Dll,
     pe::PE,
-    hash::{crc32ba, jenkins3}, 
+    hash::jenkins3, 
     syscall::{DOWN, RANGE, UP}
 };
 use crate::{
@@ -26,10 +26,7 @@ use crate::{
 /// # Returns
 /// 
 /// The System Service Number (SSN) if resolved successfully.
-pub fn ssn(
-    function_name: &str,
-    module: *mut c_void,
-) -> Option<u16> {
+pub fn ssn(function_name: &str, module: *mut c_void) -> Option<u16> {
     unsafe {
         // Recovering the export directory and hashing the module 
         let export_dir = PE::parse(module)
@@ -146,7 +143,7 @@ pub fn ssn(
 ///
 /// # Returns
 ///
-/// * The address of the `syscall` instruction if found.
+/// The address of the `syscall` instruction if found.
 pub fn get_syscall_address(address: *mut c_void) -> Option<u32> {
     unsafe {
         // Is Process wow64? (Here we will always use `ntdll.dll` to invoke)
@@ -166,7 +163,7 @@ pub fn get_syscall_address(address: *mut c_void) -> Option<u32> {
         // Here we will use `win32u.dll`, in case ntdll is not chosen to invoke the syscall
         let dll = Dll::current();
         if dll != Dll::Ntdll {
-            let mut h_module = GetModuleHandle(dll.hash(), Some(crc32ba));
+            let mut h_module = GetModuleHandle(dll.name(), None);
             if h_module.is_null() {
                 h_module = LoadLibraryA(dll.name());
             }
@@ -199,11 +196,11 @@ pub fn get_syscall_address(address: *mut c_void) -> Option<u32> {
 ///
 /// # Returns
 ///
-/// * If the process is running under **WOW64**.
+/// If the process is running under **WOW64**.
 /// 
 /// # Reference
 /// 
-/// - https://github.com/AlexPetrusca/assembly-virus/blob/17dbe88e066c4ae680136d10cd3110820169a0e9/docs/TEB.txt#L23
+/// https://github.com/AlexPetrusca/assembly-virus/blob/17dbe88e066c4ae680136d10cd3110820169a0e9/docs/TEB.txt#L23
 #[inline(always)]
 pub(crate) fn is_wow64() -> bool {
     let addr = unsafe { super::__readfsdword(0xC0) };
