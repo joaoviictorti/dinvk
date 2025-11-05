@@ -1,3 +1,6 @@
+// Copyright (c) 2025 joaoviictorti
+// Licensed under the MIT License. See LICENSE file in the project root for details.
+
 use super::types::IMAGE_DIRECTORY_ENTRY;
 
 pub const IMAGE_NT_SIGNATURE: u32 = 17744u32;

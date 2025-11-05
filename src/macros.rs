@@ -1,3 +1,6 @@
+// Copyright (c) 2025 joaoviictorti
+// Licensed under the MIT License. See LICENSE file in the project root for details.
+
 /// Macro to dynamically invoke a function from a specified module.
 /// 
 /// # Arguments
