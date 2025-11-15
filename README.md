@@ -3,9 +3,8 @@
 ![Rust](https://img.shields.io/badge/made%20with-Rust-red)
 ![crate](https://img.shields.io/crates/v/dinvk.svg)
 ![docs](https://docs.rs/dinvk/badge.svg)
-![Forks](https://img.shields.io/github/forks/joaoviictorti/dinvk)
-![Stars](https://img.shields.io/github/stars/joaoviictorti/dinvk)
-![License](https://img.shields.io/github/license/joaoviictorti/dinvk)
+![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-brightgreen)
+[![Actions status](https://github.com/joaoviictorti/dinvk/actions/workflows/ci.yml/badge.svg)](https://github.com/joaoviictorti/dinvk/actions)
 
 Dynamically invoke arbitrary code with Rust tricks, `#[no_std]` support, and compatibility for `x64`, `x86`, `ARM64` and `WoW64` (DInvoke)
 
