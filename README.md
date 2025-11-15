@@ -177,7 +177,7 @@ Utilizes hardware breakpoints to manipulate syscall parameters before execution,
 * The library includes several API wrappers that leverage DInvoke and support hardware breakpoints to spoof syscall arguments dynamically.
 * These breakpoints modify syscall parameters after security monitoring tools inspect them but before the syscall executes, effectively bypassing detection.
 * Currently supporting x64, x86 and WoW64.
-* You can find the full list of wrapped functions in the [wrappers](https://github.com/joaoviictorti/dinvk/tree/main/src/wrappers.rs) module.
+* You can find the full list of wrapped functions in the [winapis](https://github.com/joaoviictorti/dinvk/tree/main/src/winapis.rs) module.
 
 ```rust
 use dinvk::{
