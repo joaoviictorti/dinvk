@@ -272,7 +272,7 @@ I want to express my gratitude to these projects that inspired me to create `din
 
 dinvk is licensed under either of
 
-- Apache License, Version 2.0, ([(https://github.com/joaoviictorti/dinvk/tree/main/LICENSE-APACHE](LICENSE-APACHE) or
+- Apache License, Version 2.0, ([https://github.com/joaoviictorti/dinvk/tree/main/LICENSE-APACHE](LICENSE-APACHE) or
   <https://www.apache.org/licenses/LICENSE-2.0>)
 - MIT license ([LICENSE-MIT](https://github.com/joaoviictorti/dinvk/tree/main/LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
 
