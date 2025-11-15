@@ -1,3 +1,5 @@
+//! Windows API and NT system call wrappers.
+
 use core::{ffi::c_void, ptr::null_mut};
 use obfstr::obfstr as s;
 
@@ -7,17 +9,13 @@ use super::breakpoint::{
     set_breakpoint, 
     WINAPI, CURRENT_API
 };
-use super::{
-    data::*, 
-    dinvoke,
-    get_ntdll_address, 
-    GetModuleHandle,
-};
+use super::module::{get_ntdll_address, get_module_address};
+use super::{data::*, dinvoke};
 
 /// Wrapper for the `LoadLibraryA` function from `KERNEL32.DLL`.
 pub fn LoadLibraryA(module: &str) -> *mut c_void {
     let name = alloc::format!("{module}\0");
-    let kernel32 = GetModuleHandle(s!("KERNEL32.DLL"), None);
+    let kernel32 = get_module_address(s!("KERNEL32.DLL"), None);
     dinvoke!(
         kernel32,
         s!("LoadLibraryA"),
@@ -56,7 +54,7 @@ pub fn NtAllocateVirtualMemory(
                 process_handle = -23isize as HANDLE; 
                 
                 // Locate and set a breakpoint on the NtAllocateVirtualMemory syscall.
-                let addr = super::GetProcAddress(get_ntdll_address(), s!("NtAllocateVirtualMemory"), None);
+                let addr = super::module::get_proc_address(get_ntdll_address(), s!("NtAllocateVirtualMemory"), None);
                 if let Some(syscall_addr) = super::get_syscall_address(addr) {
                     set_breakpoint(syscall_addr);
                 }
@@ -105,7 +103,7 @@ pub fn NtProtectVirtualMemory(
                 process_handle = -23isize as HANDLE; 
 
                 // Locate and set a breakpoint on the NtProtectVirtualMemory syscall.
-                let addr = super::GetProcAddress(get_ntdll_address(), s!("NtProtectVirtualMemory"), None);
+                let addr = super::module::get_proc_address(get_ntdll_address(), s!("NtProtectVirtualMemory"), None);
                 if let Some(syscall_addr) = super::get_syscall_address(addr) {
                     set_breakpoint(syscall_addr);
                 }
@@ -167,7 +165,7 @@ pub fn NtCreateThreadEx(
                 object_attributes = Box::leak(Box::new(OBJECT_ATTRIBUTES::default()));
 
                 // Locate and set a breakpoint on the NtCreateThreadEx syscall.
-                let addr = super::GetProcAddress(get_ntdll_address(), s!("NtCreateThreadEx"), None);
+                let addr = super::module::get_proc_address(get_ntdll_address(), s!("NtCreateThreadEx"), None);
                 if let Some(addr) = super::get_syscall_address(addr) {
                     set_breakpoint(addr);
                 }
@@ -224,7 +222,7 @@ pub fn NtWriteVirtualMemory(
                 number_of_bytes_to_write = temp.len();
 
                 // Locate and set a breakpoint on the NtWriteVirtualMemory syscall.
-                let addr = super::GetProcAddress(get_ntdll_address(), s!("NtWriteVirtualMemory"), None);
+                let addr = super::module::get_proc_address(get_ntdll_address(), s!("NtWriteVirtualMemory"), None);
                 if let Some(addr) = super::get_syscall_address(addr) {
                     set_breakpoint(addr);
                 }
@@ -250,7 +248,7 @@ pub fn AddVectoredExceptionHandler(
     first: u32,
     handler: PVECTORED_EXCEPTION_HANDLER,
 ) -> *mut c_void {
-    let kernel32 = GetModuleHandle(s!("KERNEL32.DLL"), None);
+    let kernel32 = get_module_address(s!("KERNEL32.DLL"), None);
     dinvoke!(
         kernel32,
         s!("AddVectoredExceptionHandler"),
@@ -265,7 +263,7 @@ pub fn AddVectoredExceptionHandler(
 pub fn RemoveVectoredExceptionHandler(
     handle: *mut c_void,
 ) -> u32 {
-    let kernel32 = GetModuleHandle(s!("KERNEL32.DLL"), None);
+    let kernel32 = get_module_address(s!("KERNEL32.DLL"), None);
     dinvoke!(
         kernel32,
         s!("RemoveVectoredExceptionHandler"),
@@ -307,7 +305,7 @@ pub fn NtSetContextThread(
 
 /// Wrapper for the `GetStdHandle` function from `KERNEL32.DLL`.
 pub fn GetStdHandle(handle: u32) -> HANDLE {
-    let kernel32 = GetModuleHandle(s!("KERNEL32.DLL"), None);
+    let kernel32 = get_module_address(s!("KERNEL32.DLL"), None);
     dinvoke!(
         kernel32,
         s!("GetStdHandle"),

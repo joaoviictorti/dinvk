@@ -2,7 +2,7 @@ use dinvk::breakpoint::{
     set_use_breakpoint, 
     veh_handler
 };
-use dinvk::{
+use dinvk::winapis::{
     NT_SUCCESS, NtCurrentProcess,
     AddVectoredExceptionHandler, 
     NtAllocateVirtualMemory, 

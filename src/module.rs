@@ -1,3 +1,5 @@
+//! Module resolution helpers for Windows.
+
 use alloc::{
     format, vec::Vec, vec,
     string::{String, ToString}, 
@@ -11,10 +13,7 @@ use core::{
 use obfstr::obfstr as s;
 use super::{data::*, pe::PE};
 use super::hash::{crc32ba, murmur3};
-use super::{
-    LoadLibraryA,
-    NtCurrentPeb
-};
+use super::winapis::{LoadLibraryA, NtCurrentPeb};
 
 /// Stores the NTDLL address
 static NTDLL: spin::Once<u64> = spin::Once::new();
@@ -22,7 +21,7 @@ static NTDLL: spin::Once<u64> = spin::Once::new();
 /// Retrieves the base address of the `ntdll.dll` module.
 #[inline(always)]
 pub fn get_ntdll_address() -> *mut c_void {
-    *NTDLL.call_once(|| GetModuleHandle(
+    *NTDLL.call_once(|| get_module_address(
         2788516083u32, 
         Some(murmur3)) as u64
     ) as *mut c_void
@@ -42,10 +41,10 @@ pub fn get_ntdll_address() -> *mut c_void {
 /// # Examples
 ///
 /// ```
-/// let base = GetModuleHandle("ntdll.dll", None);
-/// let base = GetModuleHandle(2788516083u32, Some(murmur3));
+/// let base = get_module_address("ntdll.dll", None);
+/// let base = get_module_address(2788516083u32, Some(murmur3));
 /// ```
-pub fn GetModuleHandle<T>(
+pub fn get_module_address<T>(
     module: T,
     hash: Option<fn(&str) -> u32>
 ) -> HMODULE
@@ -124,19 +123,19 @@ where
 ///
 /// ### Name
 /// ```rust,ignore
-/// GetProcAddress(base, "NtProtectVirtualMemory", None);
+/// get_proc_address(base, "NtProtectVirtualMemory", None);
 /// ```
 ///
 /// ### Hash
 /// ```rust,ignore
-/// GetProcAddress(base, 2193297120u32, Some(murmur3));
+/// get_proc_address(base, 2193297120u32, Some(murmur3));
 /// ```
 ///
 /// ### Ordinal
 /// ```rust,ignore
-/// GetProcAddress(base, 473u32, None);
+/// get_proc_address(base, 473u32, None);
 /// ```
-pub fn GetProcAddress<T>(
+pub fn get_proc_address<T>(
     h_module: HMODULE,
     function: T,
     hash: Option<fn(&str) -> u32>
@@ -266,13 +265,13 @@ fn get_forwarded_address(
         // Try resolving the symbol from all resolved modules
         if let Some(modules) = module_resolved {
             for module in modules {
-                let mut addr = GetModuleHandle(module.as_str(), None);
+                let mut addr = get_module_address(module.as_str(), None);
                 if addr.is_null() {
                     addr = LoadLibraryA(module.as_str());
                 }
 
                 if !addr.is_null() {
-                    let resolved = GetProcAddress(addr, hash(function_name), Some(hash));
+                    let resolved = get_proc_address(addr, hash(function_name), Some(hash));
                     if !resolved.is_null() {
                         return resolved;
                     }

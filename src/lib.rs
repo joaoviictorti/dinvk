@@ -13,6 +13,9 @@ extern crate alloc;
 pub mod data;
 pub mod hash;
 pub mod pe;
+pub mod winapis;
+pub mod console;
+pub mod module;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 pub mod breakpoint;
@@ -23,13 +26,6 @@ pub mod panic;
 #[cfg(feature = "alloc")]
 pub mod allocator;
 
-mod functions;
 mod macros;
-mod module;
 mod syscall;
-mod console;
-
 pub use syscall::*;
-pub use functions::*;
-pub use module::*;
-pub use console::*;

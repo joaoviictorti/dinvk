@@ -1,8 +1,6 @@
 use std::{ffi::c_void, ptr::null_mut};
-use dinvk::{
-    Dll, NT_SUCCESS, syscall,
-    data::HANDLE, 
-};
+use dinvk::winapis::NT_SUCCESS;
+use dinvk::{Dll, syscall, data::HANDLE};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Alternatively, you can use Dll::Vertdll or Dll::Iumdll on x86_64

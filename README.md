@@ -35,7 +35,7 @@ This tool is a Rust version of [DInvoke](https://github.com/TheWover/DInvoke), o
 - ✅ Supports `#[no_std]` environments (with `alloc`).
 - ✅ Retrieve exported API addresses via string, ordinal, and hashing.
 - ✅ Retrieve module addresses via string and hashing.
-- ✅ Supports multiple 32-bit hash algorithms for API Hashing using `GetModuleHandle` and `GetProcAddress`: Jenkins3, Jenkins One-at-a-Time, DJB2, Murmur3, FNV-1a, SDBM, Lose, PJW, JS, and AP.
+- ✅ Supports multiple 32-bit hash algorithms for API Hashing using `get_module_address` and `get_proc_address`: Jenkins3, Jenkins One-at-a-Time, DJB2, Murmur3, FNV-1a, SDBM, Lose, PJW, JS, and AP.
 
 ## Getting started
 
@@ -56,15 +56,13 @@ Allows resolving and calling a function dynamically at runtime, avoiding static 
 * Using this macro is beneficial if you want to avoid having APIs directly listed in the `Import Address Table (IAT)` of your PE file.
 
 ```rust
-use dinvk::{
-    data::HeapAllocFn, 
-    dinvoke, GetModuleHandle,
-    GetProcessHeap
-};
+use dinvk::module::get_module_address;
+use dinvk::winapis::GetProcessHeap;
+use dinvk::{data::HeapAllocFn, dinvoke};
 
 const HEAP_ZERO_MEMORY: u32 = 8u32;
 
-let kernel32 = GetModuleHandle("KERNEL32.DLL", None);
+let kernel32 = get_module_address("KERNEL32.DLL", None);
 let addr = dinvoke!(
     kernel32,
     "HeapAlloc",
@@ -85,16 +83,17 @@ Retrieves the base address of a module and resolves exported APIs using differen
 * Then, the `LoadLibrary` function address is resolved using the same methods, with an additional example using an ordinal number.
 
 ```rust
-use dinvk::{hash::jenkins, GetModuleHandle, GetProcAddress};
+use dinvk::module::{get_module_address, get_proc_address};
+use dinvk::hash::jenkins;
 
 // Retrieving module address via string and hash
-let kernel32 = GetModuleHandle("KERNEL32.DLL", None);
-let kernel32 = GetModuleHandle(3425263715u32, Some(jenkins));
+let kernel32 = get_module_address("KERNEL32.DLL", None);
+let kernel32 = get_module_address(3425263715u32, Some(jenkins));
 
 // Retrieving exported API address via string, ordinal and hash
-let addr = GetProcAddress(kernel32, "LoadLibraryA", None);
-let addr = GetProcAddress(kernel32, 3962820501u32, Some(jenkins));
-let addr = GetProcAddress(kernel32, 997, None);
+let addr = get_proc_address(kernel32, "LoadLibraryA", None);
+let addr = get_proc_address(kernel32, 3962820501u32, Some(jenkins));
+let addr = get_proc_address(kernel32, 997, None);
 ```
 
 ### Indirect syscall
@@ -106,17 +105,13 @@ Executes syscalls indirectly, bypassing user-mode API hooks and security monitor
 
 ```rust
 use std::{ffi::c_void, ptr::null_mut};
-use dinvk::{
-    data::HANDLE,
-    NT_SUCCESS, 
-    syscall, 
-    Dll
-};
+use dinvk::winapis::{NT_SUCCESS, NtCurrentProcess};
+use dinvk::{Dll, syscall, data::HANDLE};
 
 // Memory allocation using a syscall
 let mut addr = null_mut::<c_void>();
 let mut size = (1 << 12) as usize;
-let status = syscall!("NtAllocateVirtualMemory", -1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04)
+let status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess(), &mut addr, 0, &mut size, 0x3000, 0x04)
     .ok_or("syscall resolution failed")?;
 
 if !NT_SUCCESS(status) {
@@ -133,11 +128,8 @@ The code below demonstrates how to invoke `NtAllocateVirtualMemory` using differ
 
 ```rust
 use std::{ffi::c_void, ptr::null_mut};
-use dinvk::{
-    data::{HANDLE, NTSTATUS}, 
-    syscall, Dll, NtCurrentProcess
-    NT_SUCCESS
-};
+use dinvk::winapis::{NT_SUCCESS, NtCurrentProcess};
+use dinvk::{Dll, syscall, data::{HANDLE, NTSTATUS}};
 
 // Alternatively, you can use Dll::Vertdll or Dll::Iumdll on x86_64
 Dll::use_dll(Dll::Win32u);
@@ -195,10 +187,10 @@ use dinvk::{
         veh_handler
     },
 };
-use dinvk::{
+use dinvk::winapis::{
     NT_SUCCESS,
+    NtAllocateVirtualMemory,
     AddVectoredExceptionHandler, 
-    NtAllocateVirtualMemory, 
     RemoveVectoredExceptionHandler,
 };
 
@@ -238,14 +230,12 @@ dinvk = { version = "<version>", features = ["alloc", "panic"] }
 #![no_main]
 
 use dinvk::allocator::WinHeap;
-use dinvk::{
-    get_ntdll_address, println, 
-    GetProcAddress
-};
+use dinvk::module::{get_ntdll_address, get_proc_address};
+use dinvk::println;
 
 #[unsafe(no_mangle)]
 fn main() -> u8 {
-    let addr = GetProcAddress(get_ntdll_address(), "NtOpenProcess", None);
+    let addr = get_proc_address(get_ntdll_address(), "NtOpenProcess", None);
     println!("[+] NtOpenProcess: {:?}", addr);
 
     0

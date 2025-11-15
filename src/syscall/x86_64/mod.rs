@@ -10,11 +10,8 @@ use crate::{
     hash::jenkins3, 
     syscall::{DOWN, RANGE, UP}
 };
-use crate::{
-    LoadLibraryA,
-    GetModuleHandle,
-    GetProcAddress
-};
+use crate::module::{get_module_address, get_proc_address};
+use crate::winapis::LoadLibraryA;
 
 /// Resolves the System Service Number (SSN) for a given function name within a module.
 ///
@@ -166,12 +163,12 @@ pub fn get_syscall_address(mut address: *mut c_void) -> Option<u64> {
         // in case ntdll is not chosen to invoke the syscall
         let dll = Dll::current();
         if dll != Dll::Ntdll {
-            let mut h_module = GetModuleHandle(dll.name(), None);
+            let mut h_module = get_module_address(dll.name(), None);
             if h_module.is_null() {
                 h_module = LoadLibraryA(dll.name());
             }
 
-            address = GetProcAddress(h_module, dll.function_hash(), Some(jenkins3));
+            address = get_proc_address(h_module, dll.function_hash(), Some(jenkins3));
         }
 
         let address = address.cast::<u8>();

@@ -4,7 +4,7 @@ use core::ffi::c_void;
 use core::ptr::addr_of_mut;
 use core::sync::atomic::{Ordering, AtomicBool};
 
-use super::{
+use super::winapis::{
     NtSetContextThread, 
     NtGetContextThread, 
     NtCurrentThread

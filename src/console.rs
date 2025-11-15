@@ -1,11 +1,12 @@
+//! Simple wrapper utilities for writing formatted text directly to the
+//! Windows console using `WriteConsoleA`.
+
 use alloc::vec::Vec;
 use core::{fmt::{self, Write}, ptr};
 use super::data::WriteConsoleAFn;
-use super::{
-    dinvoke,
-    GetModuleHandle, 
-    GetStdHandle 
-};
+use super::winapis::GetStdHandle;
+use super::module::get_module_address;
+use super::dinvoke;
 
 /// `ConsoleWriter` is a custom implementation of `core::fmt::Write`
 /// that writes formatted strings directly to the Windows console.
@@ -26,7 +27,7 @@ impl Write for ConsoleWriter {
         let buffer = Vec::from(s.as_bytes());
         
         // Retrieve the handle for `KERNEL32.DLL`
-        let kernel32 = GetModuleHandle(obfstr::obfstr!("KERNEL32.DLL"), None);
+        let kernel32 = get_module_address(obfstr::obfstr!("KERNEL32.DLL"), None);
 
         // Dynamically invoke `WriteConsoleA`
         dinvoke!(

@@ -17,7 +17,7 @@
 macro_rules! dinvoke {
     ($module:expr, $function:expr, $ty:ty, $($arg:expr),*) => {{
         // Get the address of the function in the specified module.
-        let address = $crate::GetProcAddress($module, $function, None);
+        let address = $crate::module::get_proc_address($module, $function, None);
         if address.is_null() {
             None
         } else {
@@ -45,10 +45,10 @@ macro_rules! dinvoke {
 macro_rules! syscall {
     ($function_name:expr, $($y:expr), +) => {{
         // Retrieve the address of ntdll.dll
-        let ntdll = $crate::get_ntdll_address();
+        let ntdll = $crate::module::get_ntdll_address();
 
         // Get the address of the specified function in ntdll.dll
-        let addr = $crate::GetProcAddress(ntdll, $function_name, None);
+        let addr = $crate::module::get_proc_address(ntdll, $function_name, None);
         if addr.is_null() {
             None
         } else {

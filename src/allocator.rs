@@ -5,7 +5,7 @@ use core::{
     alloc::{GlobalAlloc, Layout},
 };
 
-use super::{data::*, GetProcessHeap};
+use super::{data::*, winapis::GetProcessHeap};
 
 /// A thread-safe wrapper for managing a Windows Heap.
 pub struct WinHeap;
