@@ -1,6 +1,3 @@
-// Copyright (c) 2025 joaoviictorti
-// Licensed under the MIT License. See LICENSE file in the project root for details.
-
 #[cfg(target_arch = "x86")]
 mod x86;
 #[cfg(target_arch = "x86")]

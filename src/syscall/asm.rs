@@ -1,7 +1,4 @@
-// Copyright (c) 2025 joaoviictorti
-// Licensed under the MIT License. See LICENSE file in the project root for details.
-
-//! Reference: <https://github.com/janoglezcampos/rust_syscalls>
+// Reference: <https://github.com/janoglezcampos/rust_syscalls>
 
 #[cfg(target_arch = "x86_64")]
 core::arch::global_asm!("

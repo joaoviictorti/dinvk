@@ -270,4 +270,14 @@ I want to express my gratitude to these projects that inspired me to create `din
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/joaoviictorti/dinvk/tree/main/LICENSE) file for details.
+dinvk is licensed under either of
+
+- Apache License, Version 2.0, ([(https://github.com/joaoviictorti/dinvk/tree/main/LICENSE-APACHE](LICENSE-APACHE) or
+  <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](https://github.com/joaoviictorti/dinvk/tree/main/LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in dinvk
+by you, as defined in the Apache-2.0 license, shall be dually licensed as above, without any
+additional terms or conditions.
