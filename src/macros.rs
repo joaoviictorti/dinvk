@@ -79,7 +79,7 @@ macro_rules! println {
     ($($arg:tt)*) => {{
         use core::fmt::Write;
         
-        let mut console = $crate::ConsoleWriter;
+        let mut console = $crate::console::ConsoleWriter;
         let _ = writeln!(console, $($arg)*);
     }};
 }
