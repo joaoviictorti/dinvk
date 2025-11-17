@@ -2,7 +2,7 @@
 name = "dinvk"
 version = "0.4.1"
 edition = "2024"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
 authors = ["João Victor"]
 description = "Dynamically invoke arbitrary code in Rust (Dinvoke)"
