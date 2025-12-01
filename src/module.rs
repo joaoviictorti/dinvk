@@ -11,9 +11,9 @@ use core::{
 };
 
 use obfstr::obfstr as s;
-use super::{data::*, pe::PE};
-use super::hash::{crc32ba, murmur3};
-use super::winapis::{LoadLibraryA, NtCurrentPeb};
+use crate::{types::*, helper::PE};
+use crate::hash::{crc32ba, murmur3};
+use crate::winapis::{LoadLibraryA, NtCurrentPeb};
 
 /// Stores the NTDLL address
 static NTDLL: spin::Once<u64> = spin::Once::new();
@@ -29,18 +29,10 @@ pub fn get_ntdll_address() -> *mut c_void {
 
 /// Resolves the base address of a module loaded in memory by name or hash.
 ///
-/// # Arguments
-///
-/// * `module` - Can be a DLL name (as `&str`) or a hash (`u32`).
-/// * `hash` - Optional hash function. Used for hash matching.
-///
-/// # Returns
-///
-/// The module's base address.
-///
 /// # Examples
 ///
 /// ```
+/// // Retrieving module address via string and hash
 /// let base = get_module_address("ntdll.dll", None);
 /// let base = get_module_address(2788516083u32, Some(murmur3));
 /// ```
@@ -109,31 +101,13 @@ where
 
 /// Retrieves the address of an exported function from a loaded module.
 ///
-/// # Arguments
-///
-/// * `h_module` - Handle to the loaded module (base address)
-/// * `function` - Name, hash, or ordinal as input
-/// * `hash` - Optional hash function. Used for hash matching.
-///
-/// # Returns
-///
-/// Pointer to the resolved function
-///
 /// # Examples
-///
-/// ### Name
-/// ```rust,ignore
-/// get_proc_address(base, "NtProtectVirtualMemory", None);
+/// 
 /// ```
-///
-/// ### Hash
-/// ```rust,ignore
-/// get_proc_address(base, 2193297120u32, Some(murmur3));
-/// ```
-///
-/// ### Ordinal
-/// ```rust,ignore
-/// get_proc_address(base, 473u32, None);
+/// // Retrieving exported API address via string, ordinal and hash
+/// let addr = get_proc_address(kernel32, "LoadLibraryA", None);
+/// let addr = get_proc_address(kernel32, 3962820501u32, Some(jenkins));
+/// let addr = get_proc_address(kernel32, 997, None);
 /// ```
 pub fn get_proc_address<T>(
     h_module: HMODULE,
@@ -154,7 +128,7 @@ where
         // Initializes the PE parser from the base address
         let pe = PE::parse(h_module as *mut c_void);
 
-        // Retrieves the NT header and export directory; returns null if either is missing
+        // Retrieves the NT header and export directory
         let Some((nt_header, export_dir)) = pe.nt_header().zip(pe.exports().directory()) else {
             return null_mut();
         };
@@ -226,18 +200,6 @@ where
 }
 
 /// Resolves forwarded exports to the actual implementation address.
-///
-/// # Arguments
-/// 
-/// * `module` - Name of the current module performing the resolution
-/// * `address` - Address returned from the export table
-/// * `export_dir` - Pointer to the module's IMAGE_EXPORT_DIRECTORY
-/// * `export_size` - Size of the export directory
-/// * `hash` - Function to hash names (used for recursive resolution)
-///
-/// # Returns
-/// 
-/// Resolved address or original address if not a forwarder.
 fn get_forwarded_address(
     module: &str,
     address: *mut c_void,
@@ -287,15 +249,6 @@ fn get_forwarded_address(
 ///
 /// This parses the ApiSetMap from the PEB and returns all possible DLLs,
 /// excluding the current module itself if `ValueCount > 1`.
-///
-/// # Arguments
-/// 
-/// * `host_name` - Name of the module currently resolving (to avoid loops)
-/// * `contract_name` - Base contract name (e.g., `api-ms-win-core-processthreads`)
-///
-/// # Returns
-/// 
-/// A list of DLL names that implement the contract, or `None` if not found.
 fn resolve_api_set_map(
     host_name: &str,
     contract_name: &str
@@ -359,8 +312,7 @@ fn resolve_api_set_map(
     None
 }
 
-/// Returns the module name in uppercase without path or ".DLL" suffix.
-fn canonicalize_module(name: &str) -> String {
+pub fn canonicalize_module(name: &str) -> String {
     let file = name.rsplit(['\\', '/']).next().unwrap_or(name);
     let upper = file.to_ascii_uppercase();
     upper.trim_end_matches(".DLL").to_string()
@@ -368,40 +320,95 @@ fn canonicalize_module(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use core::ptr::null_mut;
     use super::*;
-    use crate::println;
 
     #[test]
     fn test_modules() {
-        println!("Module: {:?}", get_module_address("kernel32.dll", None));
-        println!("Module: {:?}", get_module_address("kernel32.DLL", None));
-        println!("Module: {:?}", get_module_address("kernel32", None));
-        println!("Module: {:?}", get_module_address("KERNEL32.dll", None));
-        println!("Module: {:?}", get_module_address("KERNEL32", None));
+        assert_ne!(get_module_address("kernel32.dll", None), null_mut());
+        assert_ne!(get_module_address("kernel32.DLL", None), null_mut());
+        assert_ne!(get_module_address("kernel32", None), null_mut());
+        assert_ne!(get_module_address("KERNEL32.dll", None), null_mut());
+        assert_ne!(get_module_address("KERNEL32", None), null_mut());
     }
 
     #[test]
     fn test_function() {
         let module = get_module_address("KERNEL32.dll", None);
-        println!("Function: {:x?}", get_proc_address(module, "VirtualAlloc", None));
+        assert_ne!(module, null_mut());
+
+        let addr = get_proc_address(module, "VirtualAlloc", None);
+        assert_ne!(addr, null_mut());
     }
 
     #[test]
     fn test_forwarded() {
         let kernel32 = get_module_address("KERNEL32.dll", None);
-        println!("SetIoRingCompletionEvent: {:x?}", get_proc_address(kernel32, "SetIoRingCompletionEvent", None));
-        println!("SetProtectedPolicy: {:x?}", get_proc_address(kernel32, "SetProtectedPolicy", None));
-        println!("SetProcessDefaultCpuSetMasks: {:x?}", get_proc_address(kernel32, "SetProcessDefaultCpuSetMasks", None));
-        println!("SetDefaultDllDirectories: {:x?}", get_proc_address(kernel32, "SetDefaultDllDirectories", None));
-        println!("SetProcessDefaultCpuSets: {:x?}", get_proc_address(kernel32, "SetProcessDefaultCpuSets", None));
-        println!("InitializeProcThreadAttributeList : {:x?}", get_proc_address(kernel32, "InitializeProcThreadAttributeList", None));
+        assert_ne!(kernel32, null_mut());
 
+        // KERNEL32 forwarded exports
+        assert_ne!(
+            get_proc_address(kernel32, "SetIoRingCompletionEvent", None),
+            null_mut()
+        );
+
+        assert_ne!(
+            get_proc_address(kernel32, "SetProtectedPolicy", None),
+            null_mut()
+        );
+
+        assert_ne!(
+            get_proc_address(kernel32, "SetProcessDefaultCpuSetMasks", None),
+            null_mut()
+        );
+
+        assert_ne!(
+            get_proc_address(kernel32, "SetDefaultDllDirectories", None),
+            null_mut()
+        );
+
+        assert_ne!(
+            get_proc_address(kernel32, "SetProcessDefaultCpuSets", None),
+            null_mut()
+        );
+
+        assert_ne!(
+            get_proc_address(kernel32, "InitializeProcThreadAttributeList", None),
+            null_mut()
+        );
+
+        // ADVAPI32 forwarded exports
         let advapi32 = LoadLibraryA("advapi32.dll");
-        println!("SystemFunction028: {:x?}", get_proc_address(advapi32, "SystemFunction028", None));
-        println!("PerfIncrementULongCounterValue: {:x?}", get_proc_address(advapi32, "PerfIncrementULongCounterValue", None));
-        println!("PerfSetCounterRefValue: {:x?}", get_proc_address(advapi32, "PerfSetCounterRefValue", None));
-        println!("I_QueryTagInformation: {:x?}", get_proc_address(advapi32, "I_QueryTagInformation", None));
-        println!("TraceQueryInformation: {:x?}", get_proc_address(advapi32, "TraceQueryInformation", None));
-        println!("TraceMessage: {:x?}", get_proc_address(advapi32, "TraceMessage", None));
+        assert_ne!(advapi32, null_mut());
+
+        assert_ne!(
+            get_proc_address(advapi32, "SystemFunction028", None),
+            null_mut()
+        );
+
+        assert_ne!(
+            get_proc_address(advapi32, "PerfIncrementULongCounterValue", None),
+            null_mut()
+        );
+
+        assert_ne!(
+            get_proc_address(advapi32, "PerfSetCounterRefValue", None),
+            null_mut()
+        );
+
+        assert_ne!(
+            get_proc_address(advapi32, "I_QueryTagInformation", None),
+            null_mut()
+        );
+
+        assert_ne!(
+            get_proc_address(advapi32, "TraceQueryInformation", None),
+            null_mut()
+        );
+
+        assert_ne!(
+            get_proc_address(advapi32, "TraceMessage", None),
+            null_mut()
+        );
     }
 }

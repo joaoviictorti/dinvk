@@ -190,7 +190,6 @@ pub fn sdbm(string: &str) -> u32 {
 /// Computes a simple additive hash (Lose-Lose Hash) for a given string.
 pub fn loselose(string: &str) -> u32 {
     let mut hash = 0u32;
-    
     for c in string.bytes() {
         hash = hash.wrapping_add(c as u32);
     }
@@ -244,4 +243,3 @@ pub fn ap(string: &str) -> u32 {
 
     hash
 }
-

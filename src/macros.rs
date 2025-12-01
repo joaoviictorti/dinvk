@@ -1,12 +1,5 @@
 /// Macro to dynamically invoke a function from a specified module.
 /// 
-/// # Arguments
-/// 
-/// * `$module` - Module address for the api to be called.
-/// * `$function` - A string slice with the name of the function to invoke.
-/// * `$ty` - The type of the function to cast to, including its signature.
-/// * `$($arg-expr),*` - A variadic list of arguments to pass to the function.
-/// 
 /// # Example
 /// 
 /// ```
@@ -16,12 +9,12 @@
 #[macro_export]
 macro_rules! dinvoke {
     ($module:expr, $function:expr, $ty:ty, $($arg:expr),*) => {{
-        // Get the address of the function in the specified module.
+        // Get the address of the function in the specified module
         let address = $crate::module::get_proc_address($module, $function, None);
         if address.is_null() {
             None
         } else {
-            // Transmute the function pointer to the desired type and invoke it with the provided arguments.
+            // Transmute the function pointer to the desired type and invoke it with the provided arguments
             let func = unsafe { core::mem::transmute::<*mut core::ffi::c_void, $ty>(address) };
             Some(unsafe { func($($arg),*) })
         }
@@ -30,15 +23,17 @@ macro_rules! dinvoke {
 
 /// Macro to perform a system call (syscall) by dynamically resolving its function name.
 ///
-/// # Arguments
-///
-/// * `$function_name` - A string slice representing the name of the syscall function.
-/// * `$($y:expr), +` - A variadic list of arguments to pass to the syscall.
-///
 /// # Example
 ///
 /// ```
-/// syscall!("NtQueryInformationProcess", ...);
+/// let mut addr = null_mut::<c_void>();
+/// let mut size = (1 << 12) as usize;
+/// let status = syscall!("NtAllocateVirtualMemory", -1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04)
+///    .ok_or("syscall resolution failed")?;
+///
+/// if !NT_SUCCESS(status) {
+///     eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
+/// }
 /// ```
 #[macro_export]
 #[cfg(any(target_arch = "x86_64", target_arch = "x86"))]

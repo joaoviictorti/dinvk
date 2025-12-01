@@ -4,25 +4,13 @@ use core::{
     slice::from_raw_parts,
 };
 
-use crate::{ 
-    Dll,
-    pe::PE,
+use crate::{
+    helper::PE,
     hash::jenkins3, 
     syscall::{DOWN, RANGE, UP}
 };
-use crate::module::{get_module_address, get_proc_address};
-use crate::winapis::LoadLibraryA;
 
 /// Resolves the System Service Number (SSN) for a given function name within a module.
-///
-/// # Arguments
-///
-/// * `function_name` - The name of the function to resolve.
-/// * `module` - A pointer to the base address of the module containing the function.
-///
-/// # Returns
-/// 
-/// The System Service Number (SSN) if resolved successfully.
 pub fn ssn(function_name: &str, module: *mut c_void) -> Option<u16> {
     unsafe {
         // Recovering the export directory and hashing the module 
@@ -133,18 +121,10 @@ pub fn ssn(function_name: &str, module: *mut c_void) -> Option<u16> {
 }
 
 /// Retrieves the syscall address from a given function address.
-///
-/// # Arguments
-///
-/// * `address` - A pointer to the function address.
-///
-/// # Returns
-///
-/// The address of the `syscall` instruction if found.
 pub fn get_syscall_address(address: *mut c_void) -> Option<u32> {
     unsafe {
-        // Is Process wow64? (Here we will always use `ntdll.dll` to invoke)
-        let mut address = address.cast::<u8>();
+        // Is Process wow64?
+        let address = address.cast::<u8>();
         if is_wow64() {
             return (1..255).find_map(|i| {
                 if read(address.add(i)) == 0xFF 
@@ -155,17 +135,6 @@ pub fn get_syscall_address(address: *mut c_void) -> Option<u32> {
                     None
                 }
             });
-        }
-
-        // Here we will use `win32u.dll`, in case ntdll is not chosen to invoke the syscall
-        let dll = Dll::current();
-        if dll != Dll::Ntdll {
-            let mut h_module = get_module_address(dll.name(), None);
-            if h_module.is_null() {
-                h_module = LoadLibraryA(dll.name());
-            }
-
-            address = get_proc_address(h_module, dll.function_hash(), Some(jenkins3)).cast::<u8>();
         }
 
         // If it's not a wow64 process, it's a native x86 process
@@ -190,10 +159,6 @@ pub fn get_syscall_address(address: *mut c_void) -> Option<u32> {
 /// and offset `0xC0` holds a pointer to the WOW64 structure.  
 /// If this value is `0`, the process is running in **pure x86 mode**.  
 /// If it is non-zero, the process is running under **WOW64**.
-///
-/// # Returns
-///
-/// If the process is running under **WOW64**.
 /// 
 /// # Reference
 /// 

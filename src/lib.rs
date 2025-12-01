@@ -1,18 +1,14 @@
 #![no_std]
 #![doc = include_str!("../README.md")]
 #![allow(non_snake_case, non_camel_case_types)]
-#![allow(
-    clippy::too_many_arguments,
-    clippy::not_unsafe_ptr_arg_deref,
-    clippy::missing_safety_doc,
-    clippy::macro_metavars_in_unsafe,
-)]
+#![allow(clippy::too_many_arguments, clippy::missing_safety_doc)]
+#![allow(clippy::not_unsafe_ptr_arg_deref, clippy::macro_metavars_in_unsafe)]
 
 extern crate alloc;
 
-pub mod data;
+pub mod types;
 pub mod hash;
-pub mod pe;
+pub mod helper;
 pub mod winapis;
 pub mod console;
 pub mod module;
@@ -28,4 +24,5 @@ pub mod allocator;
 
 mod macros;
 mod syscall;
+
 pub use syscall::*;

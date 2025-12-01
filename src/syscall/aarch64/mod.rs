@@ -5,19 +5,10 @@ use core::{
 };
 use crate::{
     hash::jenkins3, 
-    pe::PE,
+    helper::PE,
 };
 
 /// Resolves the System Service Number (SSN) for a given function name within a module.
-///
-/// # Arguments
-///
-/// * `function_name` - The name of the function to resolve.
-/// * `module` - A pointer to the base address of the module containing the function.
-///
-/// # Returns
-/// 
-/// The System Service Number (SSN) if resolved successfully.
 pub fn ssn(function_name: &str, module: *mut c_void) -> Option<u16> {
     unsafe {
         // Recovering the export directory and hashing the module 

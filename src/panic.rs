@@ -2,7 +2,8 @@
 
 use core::{fmt::Write, panic::PanicInfo};
 use obfstr::obfstr as s;
-use super::console::ConsoleWriter;
+
+use crate::console::ConsoleWriter;
 
 /// Handles panics by printing detailed error information to the console.
 pub fn panic_handler(info: &PanicInfo) -> ! {

@@ -4,13 +4,9 @@ use core::{ffi::c_void, ptr::null_mut};
 use obfstr::obfstr as s;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-use super::breakpoint::{
-    is_breakpoint_enabled, 
-    set_breakpoint, 
-    WINAPI, CURRENT_API
-};
-use super::module::{get_ntdll_address, get_module_address};
-use super::{data::*, dinvoke};
+use crate::breakpoint::{is_breakpoint_enabled, set_breakpoint, WINAPI, CURRENT_API};
+use crate::module::{get_ntdll_address, get_module_address};
+use crate::{types::*, dinvoke};
 
 /// Wrapper for the `LoadLibraryA` function from `KERNEL32.DLL`.
 pub fn LoadLibraryA(module: &str) -> *mut c_void {

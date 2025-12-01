@@ -4,12 +4,8 @@ use core::ffi::c_void;
 use core::ptr::addr_of_mut;
 use core::sync::atomic::{Ordering, AtomicBool};
 
-use super::winapis::{
-    NtSetContextThread, 
-    NtGetContextThread, 
-    NtCurrentThread
-};
-use super::data::{
+use crate::winapis::{NtSetContextThread, NtGetContextThread, NtCurrentThread};
+use crate::types::{
     CONTEXT, CONTEXT_DEBUG_REGISTERS_AMD64, EXCEPTION_SINGLE_STEP,
     EXCEPTION_CONTINUE_EXECUTION, EXCEPTION_CONTINUE_SEARCH, 
     EXCEPTION_POINTERS, HANDLE, OBJECT_ATTRIBUTES,
@@ -23,30 +19,39 @@ pub static mut CURRENT_API: Option<WINAPI> = None;
 static USE_BREAKPOINT: AtomicBool = AtomicBool::new(false);
 
 /// Enables or disables the use of hardware breakpoints globally.
-///
-/// # Arguments
 /// 
-/// * `enabled` - Enables / Disables the use of hardware breakpoints
+/// # Examples
+/// 
+/// ```
+/// // Enabling breakpoint hardware
+/// set_use_breakpoint(true);
+/// let handle = AddVectoredExceptionHandler(1, Some(veh_handler));
+///
+/// // Allocating memory and using breakpoint hardware
+/// let mut addr = std::ptr::null_mut();
+/// let mut size = 1 << 12;
+/// let status = NtAllocateVirtualMemory(NtCurrentProcess(), &mut addr, 0, &mut size, 0x3000, 0x04);
+/// if !NT_SUCCESS(status) {
+///     eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
+///     return;
+/// }
+///
+/// // Disabling breakpoint hardware
+/// set_use_breakpoint(false);
+/// RemoveVectoredExceptionHandler(handle); 
+/// ``
 #[inline(always)]
 pub fn set_use_breakpoint(enabled: bool) {
     USE_BREAKPOINT.store(enabled, Ordering::SeqCst);
 }
 
 /// Checks if hardware breakpoints are currently enabled.
-///
-/// # Returns
-/// 
-/// If breakpoints are enabled.
 #[inline(always)]
 pub fn is_breakpoint_enabled() -> bool {
     USE_BREAKPOINT.load(Ordering::SeqCst)
 }
 
 /// Configures a hardware breakpoint on the specified address.
-///
-/// # Arguments
-/// 
-/// * `address` - The memory address where the hardware breakpoint should be set.
 pub(crate) fn set_breakpoint<T: Into<u64>>(address: T) {
     let mut ctx = CONTEXT {
         ContextFlags: if cfg!(target_arch = "x86_64") { CONTEXT_DEBUG_REGISTERS_AMD64 } else { CONTEXT_DEBUG_REGISTERS_X86 },
@@ -71,17 +76,6 @@ pub(crate) fn set_breakpoint<T: Into<u64>>(address: T) {
 }
 
 /// Modifies specific bits in the `DR7` register.
-///
-/// # Arguments
-/// 
-/// * `current` - The current value of the `DR7` register.
-/// * `start_bit` - The starting bit index to modify.
-/// * `nmbr_bits` - The number of bits to modify.
-/// * `new_bit` - The new value to set for the specified bits.
-///
-/// # Returns
-/// 
-/// The updated value of the `DR7` register.
 fn set_dr7_bits<T: Into<u64>>(current: T, start_bit: i32, nmbr_bits: i32, new_bit: u64) -> u64 {
     let current = current.into();
     let mask = (1u64 << nmbr_bits) - 1;
@@ -120,16 +114,6 @@ pub enum WINAPI {
 }
 
 /// Handles exceptions triggered by hardware breakpoints (x64).
-///
-/// # Arguments
-/// 
-/// * `exceptioninfo` - A pointer to the [`EXCEPTION_POINTERS`] structure containing information
-///   about the current exception, including the CPU context and exception code.
-///
-/// # Returns
-/// 
-/// * `EXCEPTION_CONTINUE_EXECUTION` - If the exception was handled.
-/// * `EXCEPTION_CONTINUE_SEARCH` - If the exception was not handled. 
 #[cfg(target_arch = "x86_64")]
 #[allow(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "system" fn veh_handler(exceptioninfo: *mut EXCEPTION_POINTERS) -> i32 {
@@ -192,16 +176,6 @@ pub unsafe extern "system" fn veh_handler(exceptioninfo: *mut EXCEPTION_POINTERS
 }
 
 /// Handles exceptions triggered by hardware breakpoints (x86).
-///
-/// # Arguments
-/// 
-/// * `exceptioninfo` - A pointer to the [`EXCEPTION_POINTERS`] structure containing information
-/// about the current exception, including the CPU context and exception code.
-///
-/// # Returns
-/// 
-/// * `EXCEPTION_CONTINUE_EXECUTION` - If the exception was handled.
-/// * `EXCEPTION_CONTINUE_SEARCH` - If the exception was not handled. 
 #[cfg(target_arch = "x86")]
 #[allow(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "system" fn veh_handler(exceptioninfo: *mut EXCEPTION_POINTERS) -> i32 {

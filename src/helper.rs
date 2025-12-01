@@ -1,12 +1,9 @@
-//! PE Parsing.
+//! Internal helper module 
 
 use alloc::collections::BTreeMap;
-use core::{
-    ffi::{c_void, CStr},
-    slice::from_raw_parts,
-};
+use core::{ffi::{c_void, CStr}, slice::from_raw_parts};
 
-use super::data::*;
+use crate::types::*;
 
 /// Maps exported function addresses to their respective names.
 pub type Functions<'a> = BTreeMap<usize, &'a str>;
@@ -19,10 +16,7 @@ pub struct PE {
 }
 
 impl PE {
-    /// Creates a new `Pe` instance from a module base.
-    ///
-    /// # Safety
-    /// Caller must ensure `base` is a valid PE module.
+    /// Creates a new `PE` instance from a module base.
     #[inline]
     pub fn parse(base: *mut c_void) -> Self {
         Self { base }
@@ -86,12 +80,6 @@ impl PE {
     pub fn exports(&self) -> Exports<'_> {
         Exports { pe: self }
     }
-
-    /// Unwind helper
-    #[inline]
-    pub fn unwind(&self) -> Unwind<'_> {
-        Unwind { pe: self }
-    }
 }
 
 /// Provides access to the export table of a PE image.
@@ -149,60 +137,5 @@ impl<'a> Exports<'a> {
 
             Some(map)
         }
-    }
-}
-
-/// Provides access to the unwind (exception handling) information of a PE image.
-#[derive(Debug)]
-pub struct Unwind<'a> {
-    /// Reference to the parsed PE image.
-    pub pe: &'a PE,
-}
-
-impl<'a> Unwind<'a> {
-    /// Returns the address of the unwind/exception table.
-    pub fn directory(&self) -> Option<*const IMAGE_RUNTIME_FUNCTION> {
-        let nt = self.pe.nt_header()?;
-        let dir = unsafe {
-            (*nt).OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION]
-        };
-
-        if dir.VirtualAddress == 0 {
-            return None;
-        }
-
-        Some((self.pe.base as usize + dir.VirtualAddress as usize) as *const IMAGE_RUNTIME_FUNCTION)
-    }
-
-    /// Returns all runtime function entries.
-    pub fn entries(&self) -> Option<&'a [IMAGE_RUNTIME_FUNCTION]> {
-        let nt = self.pe.nt_header()?;
-        let dir = unsafe {
-            (*nt).OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION]
-        };
-
-        if dir.VirtualAddress == 0 || dir.Size == 0 {
-            return None;
-        }
-
-        let addr = (self.pe.base as usize + dir.VirtualAddress as usize) as *const IMAGE_RUNTIME_FUNCTION;
-        let len = dir.Size as usize / size_of::<IMAGE_RUNTIME_FUNCTION>();
-
-        Some(unsafe { from_raw_parts(addr, len) })
-    }
-
-    /// Finds a runtime function by its RVA.
-    pub fn function_by_offset(&self, offset: u32) -> Option<&'a IMAGE_RUNTIME_FUNCTION> {
-        self.entries()?.iter().find(|f| f.BeginAddress == offset)
-    }
-
-    /// Gets the size in bytes of a function using the unwind table.
-    pub fn function_size(&self, func: *mut c_void) -> Option<u64> {
-        let offset = (func as usize - self.pe.base as usize) as u32;
-        let entry = self.function_by_offset(offset)?;
-
-        let start = self.pe.base as u64 + entry.BeginAddress as u64;
-        let end = self.pe.base as u64 + entry.EndAddress as u64;
-        Some(end - start)
     }
 }
