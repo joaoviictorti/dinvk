@@ -1,4 +1,4 @@
-# dinvk 🦀
+# dinvk
 
 ![Rust](https://img.shields.io/badge/made%20with-Rust-red)
 ![crate](https://img.shields.io/crates/v/dinvk.svg)
@@ -18,20 +18,16 @@ This tool is a Rust version of [DInvoke](https://github.com/TheWover/DInvoke), o
     - [Dynamically Invoke Arbitrary Code](#dynamically-invoke-arbitrary-code)
     - [Retrieving Module Addresses and Exported APIs](#retrieving-module-addresses-and-exported-apis)
     - [Indirect syscall](#indirect-syscall)
-    - [Redirecting Syscall Invocation to Different DLLs](#redirecting-syscall-invocation-to-different-dlls)
     - [Different Hash Methods for API Hashing](#different-hash-methods-for-api-hashing)
     - [Tampered Syscalls Via Hardware BreakPoints](#tampered-syscalls-via-hardware-breakpoints)
     - [Support for no_std Environments](#support-for-no_std-environments)
-- [References](#references)
 - [License](#license)
 
 ## Features
 
 - ✅ Dynamically invoke arbitrary code (*x64*, *x86*, *Wow64*, *ARM64*).
 - ✅ Indirect Syscall (*x64*, *x86*, *Wow64*).
-- ✅ Redirecting Syscall Invocation to Different DLLs.
 - ✅ Tampered Syscalls Via Hardware BreakPoints (*x64*, *x86*, *Wow64*).
-- ✅ PE headers parsing.
 - ✅ Supports `#[no_std]` environments (with `alloc`).
 - ✅ Retrieve exported API addresses via string, ordinal, and hashing.
 - ✅ Retrieve module addresses via string and hashing.
@@ -58,7 +54,7 @@ Allows resolving and calling a function dynamically at runtime, avoiding static 
 ```rust
 use dinvk::module::get_module_address;
 use dinvk::winapis::GetProcessHeap;
-use dinvk::{data::HeapAllocFn, dinvoke};
+use dinvk::{types::HeapAllocFn, dinvoke};
 
 const HEAP_ZERO_MEMORY: u32 = 8u32;
 
@@ -106,7 +102,7 @@ Executes syscalls indirectly, bypassing user-mode API hooks and security monitor
 ```rust
 use std::{ffi::c_void, ptr::null_mut};
 use dinvk::winapis::{NT_SUCCESS, NtCurrentProcess};
-use dinvk::{Dll, syscall, data::HANDLE};
+use dinvk::{Dll, syscall, types::HANDLE};
 
 // Memory allocation using a syscall
 let mut addr = null_mut::<c_void>();
@@ -119,34 +115,6 @@ if !NT_SUCCESS(status) {
     return Ok(());
 }
 ```
-
-## Redirecting Syscall Invocation to Different DLLs
-
-By default, syscalls in Windows are invoked via `ntdll.dll`. However, on x86_64 architectures, other DLLs such as `win32u.dll`, `vertdll.dll` and `iumdll.dll` also contain syscall instructions, allowing you to avoid indirect calls via `ntdll.dll`. On x86, only `win32u.dll` has these instructions.
-
-The code below demonstrates how to invoke `NtAllocateVirtualMemory` using different DLLs to execute the syscall:
-
-```rust
-use std::{ffi::c_void, ptr::null_mut};
-use dinvk::winapis::{NT_SUCCESS, NtCurrentProcess};
-use dinvk::{Dll, syscall, data::{HANDLE, NTSTATUS}};
-
-// Alternatively, you can use Dll::Vertdll or Dll::Iumdll on x86_64
-Dll::use_dll(Dll::Win32u);
-
-// Memory allocation using a syscall
-let mut addr = null_mut::<c_void>();
-let mut size = (1 << 12) as usize;
-let status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess(), &mut addr, 0, &mut size, 0x3000, 0x04)
-    .ok_or("syscall resolution failed")?;
-
-if !NT_SUCCESS(status) {
-    eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
-    return Ok(());
-}
-```
-
-This method can be useful to avoid indirect invocations in `ntdll.dll`, diversifying the points of origin of the syscalls in the process.
 
 ### Different Hash Methods for API Hashing
 
@@ -181,7 +149,7 @@ Utilizes hardware breakpoints to manipulate syscall parameters before execution,
 
 ```rust
 use dinvk::{
-    data::HANDLE,
+    types::HANDLE,
     breakpoint::{
         set_use_breakpoint, 
         veh_handler
@@ -250,12 +218,6 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     dinvk::panic::panic_handler(info)
 }
 ```
-
-## References
-
-I want to express my gratitude to these projects that inspired me to create `dinvk` and contribute with some features:
-
-- [DInvoke](https://github.com/TheWover/DInvoke)
 
 ## License
 
