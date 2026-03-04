@@ -49,8 +49,8 @@ impl Module {
     /// # Examples
     ///
     /// ```no_run
-    /// use dinvk::Module;
-    /// use dinvk::hash::murmur3;
+    /// # use dinvk::Module;
+    /// # use dinvk::hash::murmur3;
     ///
     /// // NTDLL.DLL hash
     /// let ntdll = Module::find_by_hash(2788516083, murmur3);
@@ -72,7 +72,7 @@ impl Module {
     /// # Examples
     ///
     /// ```no_run
-    /// use dinvk::Module;
+    /// # use dinvk::Module;
     ///
     /// let base = 0x7fff00000000 as *mut _;
     /// let module = Module::from_ptr(base);
@@ -90,7 +90,7 @@ impl Module {
     /// # Examples
     ///
     /// ```no_run
-    /// use dinvk::Module;
+    /// # use dinvk::Module;
     ///
     /// let exe = Module::current().unwrap();
     /// println!("Base: {:?}", exe.base());
@@ -111,7 +111,7 @@ impl Module {
     /// # Examples
     ///
     /// ```no_run
-    /// use dinvk::Module;
+    /// # use dinvk::Module;
     ///
     /// let func = Module::find("kernel32.dll")
     ///     .and_then(|m| m.proc("VirtualAlloc"));
@@ -130,8 +130,8 @@ impl Module {
     /// # Examples
     ///
     /// ```no_run
-    /// use dinvk::Module;
-    /// use dinvk::hash::jenkins;
+    /// # use dinvk::Module;
+    /// # use dinvk::hash::jenkins;
     ///
     /// let func = Module::find("kernel32.dll")
     ///     .and_then(|m| m.proc_by_hash(0xDEADBEEF, jenkins));
@@ -150,7 +150,7 @@ impl Module {
     /// # Examples
     ///
     /// ```no_run
-    /// use dinvk::Module;
+    /// # use dinvk::Module;
     ///
     /// let func = Module::find("kernel32.dll")
     ///     .and_then(|m| m.proc_by_ordinal(997));

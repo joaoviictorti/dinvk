@@ -30,8 +30,8 @@ const UP: isize = -32;
 /// # Examples
 ///
 /// ```no_run
-/// use dinvk::Module;
-/// use dinvk::sys::find_ssn;
+/// # use dinvk::Module;
+/// # use dinvk::sys::find_ssn;
 ///
 /// let ntdll = Module::find("ntdll.dll").unwrap();
 /// if let Some(ssn) = find_ssn("NtAllocateVirtualMemory", ntdll.base()) {
@@ -143,8 +143,8 @@ fn search_neighbors_x64(address: *const u8) -> Option<u16> {
 /// # Examples
 ///
 /// ```no_run
-/// use dinvk::Module;
-/// use dinvk::sys::get_syscall_address;
+/// # use dinvk::Module;
+/// # use dinvk::sys::get_syscall_address;
 ///
 /// let ntdll = Module::find("ntdll.dll").unwrap();
 /// let addr = ntdll.proc("NtClose").unwrap();
@@ -243,8 +243,8 @@ fn search_neighbors_x86(address: *const u8) -> Option<u16> {
 /// # Examples
 ///
 /// ```no_run
-/// use dinvk::Module;
-/// use dinvk::sys::get_syscall_address;
+/// # use dinvk::Module;
+/// # use dinvk::sys::get_syscall_address;
 ///
 /// let ntdll = Module::find("ntdll.dll").unwrap();
 /// let addr = ntdll.proc("NtClose").unwrap();

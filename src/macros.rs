@@ -6,8 +6,8 @@
 /// # Examples
 ///
 /// ```no_run
-/// use core::ffi::c_void;
-/// use dinvk::{dinvoke, Module};
+/// # use core::ffi::c_void;
+/// # use dinvk::{dinvoke, Module};
 ///
 /// type LoadLibraryAFn = extern "system" fn(*const u8) -> *mut c_void;
 ///
@@ -40,8 +40,8 @@ macro_rules! dinvoke {
 /// # Examples
 ///
 /// ```no_run
-/// use core::{ptr::null_mut, ffi::c_void};
-/// use dinvk::syscall;
+/// # use core::{ptr::null_mut, ffi::c_void};
+/// # use dinvk::syscall;
 ///
 /// let mut addr: *mut c_void = null_mut();
 /// let mut size: usize = 0x1000;
@@ -93,7 +93,7 @@ macro_rules! syscall {
 /// # Examples
 ///
 /// ```ignore
-/// use dinvk::{link, Module};
+/// # use dinvk::{link, Module};
 ///
 /// type HANDLE = *mut core::ffi::c_void;
 /// type NTSTATUS = i32;

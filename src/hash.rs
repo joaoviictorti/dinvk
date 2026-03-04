@@ -5,7 +5,7 @@
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::crc32ba;
+/// # use dinvk::hash::crc32ba;
 ///
 /// // Pre-computed hash for module resolution
 /// const NTDLL_HASH: u32 = 0x1C8BDEBA;
@@ -32,7 +32,7 @@ pub fn crc32ba(string: &str) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::jenkins3;
+/// # use dinvk::hash::jenkins3;
 ///
 /// // Pre-computed hash for NtAllocateVirtualMemory
 /// const NT_ALLOC_HASH: u32 = 3037277565;
@@ -110,7 +110,7 @@ pub fn jenkins3(string: &str) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::jenkins;
+/// # use dinvk::hash::jenkins;
 ///
 /// // Pre-computed hash for KERNEL32.DLL
 /// const KERNEL32_HASH: u32 = 3425263715;
@@ -138,7 +138,7 @@ pub fn jenkins(string: &str) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::djb2;
+/// # use dinvk::hash::djb2;
 ///
 /// // Pre-computed hash for kernel32.dll
 /// const KERNEL32_HASH: u32 = 1883303541;
@@ -160,7 +160,7 @@ pub fn djb2(string: &str) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::fnv1a;
+/// # use dinvk::hash::fnv1a;
 ///
 /// // Pre-computed hash for ntdll.dll
 /// const NTDLL_HASH: u32 = 0xA62A3B3B;
@@ -185,7 +185,7 @@ pub fn fnv1a(string: &str) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::murmur3;
+/// # use dinvk::hash::murmur3;
 ///
 /// let hash = murmur3("NTDLL.DLL");
 /// assert_eq!(hash, 2788516083);
@@ -243,7 +243,7 @@ pub fn murmur3(string: &str) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::sdbm;
+/// # use dinvk::hash::sdbm;
 ///
 /// // Pre-computed hash for VirtualAlloc
 /// const VIRTUAL_ALLOC_HASH: u32 = 0x39D1A64A;
@@ -268,7 +268,7 @@ pub fn sdbm(string: &str) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::loselose;
+/// # use dinvk::hash::loselose;
 ///
 /// let hash = loselose("test");
 /// assert_eq!(hash, 448); // 't' + 'e' + 's' + 't'
@@ -288,7 +288,7 @@ pub fn loselose(string: &str) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::pjw;
+/// # use dinvk::hash::pjw;
 ///
 /// // Pre-computed hash for CreateFileA
 /// const CREATE_FILE_HASH: u32 = 0x0AD68911;
@@ -320,7 +320,7 @@ pub fn pjw(string: &str) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::js;
+/// # use dinvk::hash::js;
 ///
 /// // Pre-computed hash for ReadFile
 /// const READ_FILE_HASH: u32 = 0xF70408B1;
@@ -342,7 +342,7 @@ pub fn js(string: &str) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use dinvk::hash::ap;
+/// # use dinvk::hash::ap;
 ///
 /// // Pre-computed hash for WriteFile
 /// const WRITE_FILE_HASH: u32 = 0xA85A7ADD;

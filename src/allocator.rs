@@ -15,6 +15,8 @@ use crate::env::nt_current_peb;
 /// # Examples
 ///
 /// ```
+/// # use dinvk::allocator::Heap;
+/// 
 /// #[global_allocator]
 /// static ALLOCATOR: Heap = Heap::empty();
 ///
