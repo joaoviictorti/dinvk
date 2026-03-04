@@ -92,7 +92,7 @@ mod module;
 mod macros;
 
 #[cfg(feature = "alloc")]
-pub mod alloc;
+pub mod allocator;
 #[doc(hidden)]
 pub mod resolve;
 
