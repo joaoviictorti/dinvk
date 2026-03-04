@@ -29,6 +29,7 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+      - run: rustup component add clippy
       - run: cargo clippy --all-targets --all-features
 
   test:
