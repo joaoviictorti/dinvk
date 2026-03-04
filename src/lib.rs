@@ -97,4 +97,3 @@ pub mod allocator;
 pub mod resolve;
 
 pub use module::Module;
-pub use pe::PeImage;
