@@ -32,10 +32,10 @@ let load_library = kernel32.proc("LoadLibraryA").unwrap();
 
 // By hash
 let kernel32 = Module::find_by_hash(3425263715, jenkins).unwrap();
-let func = kernel32.proc_by_hash(3962820501);
+let func = kernel32.proc_by_hash(3962820501, jenkins).unwrap();
 
 // By ordinal
-let func = kernel32.proc_by_ordinal(997);
+let func = kernel32.proc_by_ordinal(997).unwrap();
 ```
 
 ### Dynamic Invocation
