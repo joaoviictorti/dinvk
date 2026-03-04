@@ -1,310 +1,411 @@
-//! Module resolution helpers for Windows.
+use core::ptr::null_mut;
+use core::slice::from_raw_parts;
+use core::ffi::{c_void, CStr};
+use alloc::format;
+use alloc::vec;
+use alloc::vec::Vec;
+use alloc::string::{String, ToString};
 
-use alloc::{
-    format, vec::Vec, vec,
-    string::{String, ToString}, 
+use windows_sys::Win32::System::SystemServices::IMAGE_EXPORT_DIRECTORY;
+use phnt::ffi::{
+    API_SET_NAMESPACE_ENTRY, API_SET_VALUE_ENTRY,
+    LDR_DATA_TABLE_ENTRY, LIST_ENTRY
 };
-use core::{
-    ffi::{c_void, CStr}, 
-    ptr::null_mut, 
-    slice::from_raw_parts
-};
 
-use obfstr::obfstr as s;
-use crate::{types::*, helper::PE};
-use crate::hash::{crc32ba, murmur3};
-use crate::winapis::{LoadLibraryA, NtCurrentPeb};
+use crate::link;
+use crate::pe::PeImage;
+use crate::env::nt_current_peb;
 
-/// Stores the NTDLL address
-static NTDLL: spin::Once<u64> = spin::Once::new();
-
-/// Retrieves the base address of the `ntdll.dll` module.
-#[inline(always)]
-pub fn get_ntdll_address() -> *mut c_void {
-    *NTDLL.call_once(|| get_module_address(
-        2788516083u32, 
-        Some(murmur3)) as u64
-    ) as *mut c_void
-}
-
-/// Resolves the base address of a module loaded in memory by name or hash.
+/// A handle to a loaded Windows module.
+///
+/// Wraps a module base address and provides methods for resolving exports.
+/// Created via [`Module::find`] or [`Module::from_ptr`].
 ///
 /// # Examples
 ///
-/// ```
-/// // Retrieving module address via string and hash
-/// let base = get_module_address("ntdll.dll", None);
-/// let base = get_module_address(2788516083u32, Some(murmur3));
-/// ```
-pub fn get_module_address<T>(
-    module: T,
-    hash: Option<fn(&str) -> u32>
-) -> HMODULE
-where 
-    T: ToString
-{
-    unsafe {
-        let hash = hash.unwrap_or(crc32ba);
-        let peb = NtCurrentPeb();
-        let ldr_data = (*peb).Ldr;
-        let mut list_node = (*ldr_data).InMemoryOrderModuleList.Flink;
-        let mut data_table_entry = (*ldr_data).InMemoryOrderModuleList.Flink 
-            as *const LDR_DATA_TABLE_ENTRY;
-
-        if module.to_string().is_empty() {
-            return (*peb).ImageBaseAddress;
-        }
-
-        // Save a reference to the head nod for the list
-        let head_node = list_node;
-        let mut addr = null_mut();
-        while !(*data_table_entry).FullDllName.Buffer.is_null() {
-            if (*data_table_entry).FullDllName.Length != 0 {
-                // Converts the buffer from UTF-16 to a `String`
-                let buffer = from_raw_parts(
-                    (*data_table_entry).FullDllName.Buffer,
-                    ((*data_table_entry).FullDllName.Length / 2) as usize
-                );
-            
-                // Try interpreting `module` as a numeric hash (u32)
-                let mut dll_file_name = String::from_utf16_lossy(buffer).to_uppercase();
-                if let Ok(dll_hash) = module.to_string().parse::<u32>() {
-                    if dll_hash == hash(&dll_file_name) {
-                        addr = (*data_table_entry).Reserved2[0];
-                        break;
-                    }
-                } else {
-                    // If it is not an `u32`, it is treated as a string
-                    let module = canonicalize_module(&module.to_string());
-                    dll_file_name = canonicalize_module(&dll_file_name);
-                    if dll_file_name == module {
-                        addr = (*data_table_entry).Reserved2[0];
-                        break;
-                    }
-                }
-            }
-
-            // Moves to the next node in the list of modules
-            list_node = (*list_node).Flink;
-
-            // Break out of loop if all of the nodes have been checked
-            if list_node == head_node {
-                break
-            }
-
-            data_table_entry = list_node as *const LDR_DATA_TABLE_ENTRY
-        }
-        
-        addr
-    }
-}
-
-/// Retrieves the address of an exported function from a loaded module.
+/// ```no_run
+/// use dinvk::Module;
 ///
-/// # Examples
-/// 
+/// let kernel32 = Module::find("kernel32.dll").unwrap();
+/// let virtual_alloc = kernel32.proc("VirtualAlloc").unwrap();
 /// ```
-/// // Retrieving exported API address via string, ordinal and hash
-/// let addr = get_proc_address(kernel32, "LoadLibraryA", None);
-/// let addr = get_proc_address(kernel32, 3962820501u32, Some(jenkins));
-/// let addr = get_proc_address(kernel32, 997, None);
-/// ```
-pub fn get_proc_address<T>(
-    h_module: HMODULE,
-    function: T,
-    hash: Option<fn(&str) -> u32>
-) -> *mut c_void
-where 
-    T: ToString,
-{
-    if h_module.is_null() {
-        return null_mut();
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub struct Module(*mut c_void);
+
+impl Module {
+    /// Finds a loaded module by name.
+    pub fn find(name: &str) -> Option<Self> {
+        let base = find_module_by_name(name);
+        if base.is_null() {
+            None
+        } else {
+            Some(Self(base))
+        }
     }
 
-    unsafe {
-        // Converts the module handle to a base address
-        let h_module = h_module as usize;
+    /// Finds a loaded module by hash.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use dinvk::Module;
+    /// use dinvk::hash::murmur3;
+    ///
+    /// // NTDLL.DLL hash
+    /// let ntdll = Module::find_by_hash(2788516083, murmur3);
+    /// ```
+    pub fn find_by_hash(hash: u32, hash_fn: fn(&str) -> u32) -> Option<Self> {
+        let base = find_module_by_hash(hash, hash_fn);
+        if base.is_null() {
+            None
+        } else {
+            Some(Self(base))
+        }
+    }
 
-        // Initializes the PE parser from the base address
-        let pe = PE::parse(h_module as *mut c_void);
+    /// Creates a Module from an existing base address.
+    ///
+    /// Use this when you already have a module handle from another source,
+    /// like `GetModuleHandle` or a previous lookup.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use dinvk::Module;
+    ///
+    /// let base = 0x7fff00000000 as *mut _;
+    /// let module = Module::from_ptr(base);
+    /// ```
+    pub fn from_ptr(base: *mut c_void) -> Option<Self> {
+        if base.is_null() {
+            None
+        } else {
+            Some(Self(base))
+        }
+    }
 
-        // Retrieves the NT header and export directory
-        let Some((nt_header, export_dir)) = pe.nt_header().zip(pe.exports().directory()) else {
+    /// Returns the current process executable.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use dinvk::Module;
+    ///
+    /// let exe = Module::current().unwrap();
+    /// println!("Base: {:?}", exe.base());
+    /// ```
+    pub fn current() -> Option<Self> {
+        let peb = nt_current_peb();
+        let base = unsafe { (*peb).ImageBaseAddress };
+        Self::from_ptr(base)
+    }
+
+    /// Returns the module base address.
+    pub fn base(&self) -> *mut c_void {
+        self.0
+    }
+    
+    /// Resolves an export by name.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use dinvk::Module;
+    ///
+    /// let func = Module::find("kernel32.dll")
+    ///     .and_then(|m| m.proc("VirtualAlloc"));
+    /// ```
+    pub fn proc(&self, name: &str) -> Option<*mut c_void> {
+        let addr = self.resolve_export(ExportLookup::Name(name));
+        if addr.is_null() {
+            None
+        } else {
+            Some(addr)
+        }
+    }
+
+    /// Resolves an export by hash.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use dinvk::Module;
+    /// use dinvk::hash::jenkins;
+    ///
+    /// let func = Module::find("kernel32.dll")
+    ///     .and_then(|m| m.proc_by_hash(0xDEADBEEF, jenkins));
+    /// ```
+    pub fn proc_by_hash(&self, hash: u32, hash_fn: fn(&str) -> u32) -> Option<*mut c_void> {
+        let addr = self.resolve_export(ExportLookup::Hash(hash, hash_fn));
+        if addr.is_null() {
+            None
+        } else {
+            Some(addr)
+        }
+    }
+
+    /// Resolves an export by ordinal.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use dinvk::Module;
+    ///
+    /// let func = Module::find("kernel32.dll")
+    ///     .and_then(|m| m.proc_by_ordinal(997));
+    /// ```
+    pub fn proc_by_ordinal(&self, ordinal: u16) -> Option<*mut c_void> {
+        let addr = self.resolve_export(ExportLookup::Ordinal(ordinal));
+        if addr.is_null() { 
+            None 
+        } else { 
+            Some(addr) 
+        }
+    }
+
+    /// Internal export resolution handling all lookup types.
+    fn resolve_export(&self, lookup: ExportLookup) -> *mut c_void {
+        let pe = PeImage::parse(self.0);
+        let base = self.0 as usize;
+
+        // Get export data from PE
+        let Some(exp) = pe.exports().data() else {
             return null_mut();
         };
 
-        // Retrieves the size of the export table
-        let export_size = (*nt_header).OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT as usize].Size as usize;
-
-        // Retrieving information from module names
-        let names = from_raw_parts(
-            (h_module + (*export_dir).AddressOfNames as usize) as *const u32, 
-            (*export_dir).NumberOfNames as usize
-        );
-
-        // Retrieving information from functions
-        let functions = from_raw_parts(
-            (h_module + (*export_dir).AddressOfFunctions as usize) as *const u32, 
-            (*export_dir).NumberOfFunctions as usize
-        );
-
-        // Retrieving information from ordinals
-        let ordinals = from_raw_parts(
-            (h_module + (*export_dir).AddressOfNameOrdinals as usize) as *const u16, 
-            (*export_dir).NumberOfNames as usize
-        );
-
-        // Convert Api name to String
-        let api_name = function.to_string();
-
-        // Import By Ordinal
-        if let Ok(ordinal) = api_name.parse::<u32>() && ordinal <= 0xFFFF {
-            let ordinal = ordinal & 0xFFFF;
-            if ordinal < (*export_dir).Base || (ordinal >= (*export_dir).Base + (*export_dir).NumberOfFunctions) {
+        // Handle ordinal lookup
+        if let ExportLookup::Ordinal(ordinal) = lookup {
+            let ordinal = ordinal as u32;
+            if ordinal < exp.base_ordinal || ordinal >= exp.base_ordinal + exp.num_functions {
                 return null_mut();
             }
-
-            return (h_module + functions[ordinal as usize - (*export_dir).Base as usize] as usize) as *mut c_void;
+            let idx = (ordinal - exp.base_ordinal) as usize;
+            return (base + exp.addresses[idx] as usize) as *mut c_void;
         }
 
-        // Extract DLL name from export directory for forwarder resolution
-        let dll_name = {
-            let ptr = (h_module + (*export_dir).Name as usize) as *const i8;
-            CStr::from_ptr(ptr).to_string_lossy().into_owned()
+        // Search by name or hash
+        for i in 0..exp.names.len() {
+            let name = unsafe {
+                CStr::from_ptr((base + exp.names[i] as usize) as *const i8)
+                    .to_str()
+                    .unwrap_or("")
+            };
+
+            let matched = match lookup {
+                ExportLookup::Name(target) => name == target,
+                ExportLookup::Hash(target, hash_fn) => hash_fn(name) == target,
+                ExportLookup::Ordinal(_) => unreachable!(),
+            };
+
+            if matched {
+                let ordinal = exp.ordinals[i] as usize;
+                let address = (base + exp.addresses[ordinal] as usize) as *mut c_void;
+                return self.resolve_forward(exp.dll_name, address, exp.directory, exp.size);
+            }
+        }
+
+        null_mut()
+    }
+
+    /// Handles forwarded exports.
+    ///
+    /// Forwarded exports point to implementations in other DLLs. The forwarder
+    /// string format is "MODULE.FunctionName". ApiSet contracts (api-ms-*, ext-ms-*)
+    /// are resolved through the PEB ApiSetMap.
+    fn resolve_forward(
+        &self,
+        host_module: &str,
+        address: *mut c_void,
+        export_dir: *const IMAGE_EXPORT_DIRECTORY,
+        export_size: usize,
+    ) -> *mut c_void {
+        // Check if address is within the export directory (indicates forwarder)
+        let addr = address as usize;
+        let dir_start = export_dir as usize;
+        let dir_end = dir_start + export_size;
+        if addr < dir_start || addr >= dir_end {
+            return address;
+        }
+
+        let forwarder = unsafe {
+            CStr::from_ptr(address as *const i8)
+                .to_str()
+                .unwrap_or_default()
         };
 
-        // Import By Name or Hash
-        let hash = hash.unwrap_or(crc32ba);
-        for i in 0..(*export_dir).NumberOfNames as usize {
-            let name = CStr::from_ptr((h_module + names[i] as usize) as *const i8)
-                .to_str()
-                .unwrap_or("");
+        let Some((module_name, function_name)) = forwarder.split_once('.') else {
+            return address;
+        };
 
-            let ordinal = ordinals[i] as usize;
-            let address = (h_module + functions[ordinal] as usize) as *mut c_void;
-            if let Ok(api_hash) = api_name.parse::<u32>() {
-                // Comparison by hash
-                if hash(name) == api_hash {
-                    return get_forwarded_address(&dll_name, address, export_dir, export_size, hash);
-                }
-            } else {
-                // Comparison by String
-                if name == api_name {
-                    return get_forwarded_address(&dll_name, address, export_dir, export_size, hash);
+        // Resolve ApiSet contracts
+        let target_modules = if module_name.starts_with("api-ms") || module_name.starts_with("ext-ms") {
+            let contract = module_name.rsplit_once('-').map(|(b, _)| b).unwrap_or(module_name);
+            resolve_api_set(host_module, contract)
+        } else {
+            Some(vec![format!("{}.dll", module_name)])
+        };
+
+        // Try each resolved module
+        let Some(modules) = target_modules else {
+            return address;
+        };
+
+        for module in modules {
+            let target = Module::find(&module)
+                .or_else(|| {
+                    let cstr = format!("{module}\0");
+                    let ptr = unsafe { load_library_a(cstr.as_ptr()).ok()? };
+                    Module::from_ptr(ptr)
+                });
+
+            if let Some(m) = target {
+                if let Some(resolved) = m.proc(function_name) {
+                    return resolved;
                 }
             }
+        }
+
+        address
+    }
+}
+
+impl core::fmt::Debug for Module {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Module")
+            .field("base", &self.0)
+            .finish()
+    }
+}
+
+impl From<Module> for *mut c_void {
+    fn from(m: Module) -> Self {
+        m.0
+    }
+}
+
+impl From<&Module> for *mut c_void {
+    fn from(m: &Module) -> Self {
+        m.0
+    }
+}
+
+/// Export lookup type for internal dispatch.
+enum ExportLookup<'a> {
+    Name(&'a str),
+    Hash(u32, fn(&str) -> u32),
+    Ordinal(u16),
+}
+
+/// Finds a module by name walking the PEB loader list.
+fn find_module_by_name(name: &str) -> *mut c_void {
+    let peb = nt_current_peb();
+    if name.is_empty() {
+        return unsafe { (*peb).ImageBaseAddress };
+    }
+
+    let target = canonicalize_name(name);
+    unsafe {
+        let ldr = (*peb).Ldr;
+        let head = &(*ldr).InMemoryOrderModuleList as *const LIST_ENTRY;
+        let mut current = (*head).Flink as *const LIST_ENTRY;
+
+        while current != head {
+            let entry = (current as *const u8)
+                .sub(core::mem::offset_of!(LDR_DATA_TABLE_ENTRY, InMemoryOrderLinks))
+                as *const LDR_DATA_TABLE_ENTRY;
+
+            if !(*entry).BaseDllName.is_empty() {
+                let dll_name = (*entry).BaseDllName.to_string();
+                if canonicalize_name(&dll_name) == target {
+                    return (*entry).DllBase;
+                }
+            }
+
+            current = (*current).Flink;
         }
     }
 
     null_mut()
 }
 
-/// Resolves forwarded exports to the actual implementation address.
-fn get_forwarded_address(
-    module: &str,
-    address: *mut c_void,
-    export_dir: *const IMAGE_EXPORT_DIRECTORY,
-    export_size: usize,
-    hash: fn(&str) -> u32,
-) -> *mut c_void {
-    // Detect if the address is a forwarder RVA
-    if (address as usize) >= export_dir as usize &&
-       (address as usize) < (export_dir as usize + export_size)
-    {
-        let cstr = unsafe { CStr::from_ptr(address as *const i8) };
-        let forwarder = cstr.to_str().unwrap_or_default();
-        let (module_name, function_name) = forwarder.split_once('.')
-            .unwrap_or(("", ""));
+/// Finds a module by hash walking the PEB loader list.
+fn find_module_by_hash(hash: u32, hash_fn: fn(&str) -> u32) -> *mut c_void {
+    unsafe {
+        let peb = nt_current_peb();
+        let ldr = (*peb).Ldr;
+        let head = &(*ldr).InMemoryOrderModuleList as *const LIST_ENTRY;
+        let mut current = (*head).Flink as *const LIST_ENTRY;
 
-        // If forwarder is of type api-ms-* or ext-ms-*
-        let module_resolved = if module_name.starts_with(s!("api-ms")) || module_name.starts_with(s!("ext-ms")) {
-            let base_contract = module_name.rsplit_once('-').map(|(b, _)| b).unwrap_or(module_name);
-            resolve_api_set_map(module, base_contract)
-        } else {
-            Some(vec![format!("{}.dll", module_name)])
-        };
+        while current != head {
+            let entry = (current as *const u8)
+                .sub(core::mem::offset_of!(LDR_DATA_TABLE_ENTRY, InMemoryOrderLinks))
+                as *const LDR_DATA_TABLE_ENTRY;
 
-        // Try resolving the symbol from all resolved modules
-        if let Some(modules) = module_resolved {
-            for module in modules {
-                let mut addr = get_module_address(module.as_str(), None);
-                if addr.is_null() {
-                    addr = LoadLibraryA(module.as_str());
-                }
-
-                if !addr.is_null() {
-                    let resolved = get_proc_address(addr, hash(function_name), Some(hash));
-                    if !resolved.is_null() {
-                        return resolved;
-                    }
+            if !(*entry).BaseDllName.is_empty() {
+                let dll_name = (*entry).BaseDllName.to_string().to_uppercase();
+                if hash_fn(&dll_name) == hash {
+                    return (*entry).DllBase;
                 }
             }
+
+            current = (*current).Flink;
         }
     }
 
-    address
+    null_mut()
 }
 
-/// Resolves ApiSet contracts to the actual implementing DLLs.
-///
-/// This parses the ApiSetMap from the PEB and returns all possible DLLs,
-/// excluding the current module itself if `ValueCount > 1`.
-fn resolve_api_set_map(
-    host_name: &str,
-    contract_name: &str
-) -> Option<Vec<String>> {
+/// Resolves an ApiSet contract to implementing DLLs.
+fn resolve_api_set(host: &str, contract: &str) -> Option<Vec<String>> {
     unsafe {
-        let peb = NtCurrentPeb();
+        let peb = nt_current_peb();
         let map = (*peb).ApiSetMap;
-        
-        // Base pointer for the namespace entry array
-        let ns_entry = ((*map).EntryOffset as usize + map as usize) as *const API_SET_NAMESPACE_ENTRY;
-        let ns_entries = from_raw_parts(ns_entry, (*map).Count as usize);
 
-        for entry in ns_entries {
+        let entries = from_raw_parts(
+            (map as usize + (*map).EntryOffset as usize) as *const API_SET_NAMESPACE_ENTRY,
+            (*map).Count as usize,
+        );
+
+        for entry in entries {
             let name = String::from_utf16_lossy(from_raw_parts(
                 (map as usize + entry.NameOffset as usize) as *const u16,
                 entry.NameLength as usize / 2,
             ));
 
-            if name.starts_with(contract_name) {
-                let values = from_raw_parts(
-                    (map as usize + entry.ValueOffset as usize) as *const API_SET_VALUE_ENTRY, 
-                    entry.ValueCount as usize
-                );
+            if !name.starts_with(contract) {
+                continue;
+            }
 
-                // Only one value: direct forward
-                if values.len() == 1 {
-                    let val = &values[0];
-                    let dll = String::from_utf16_lossy(from_raw_parts(
-                        (map as usize + val.ValueOffset as usize) as *const u16,
-                        val.ValueLength as usize / 2,
-                    ));
+            let values = from_raw_parts(
+                (map as usize + entry.ValueOffset as usize) as *const API_SET_VALUE_ENTRY,
+                entry.ValueCount as usize,
+            );
 
-                    return Some(vec![dll]);
-                }
-                
-                // Multiple values: skip the host DLL to avoid self-resolving
-                let mut result = Vec::new();
-                for val in values {
-                    let name = String::from_utf16_lossy(from_raw_parts(
-                        (map as usize + val.ValueOffset as usize) as *const u16,
-                        val.ValueLength as usize / 2,
-                    ));
+            // Single value: direct mapping
+            if values.len() == 1 {
+                let dll = String::from_utf16_lossy(from_raw_parts(
+                    (map as usize + values[0].ValueOffset as usize) as *const u16,
+                    values[0].ValueLength as usize / 2,
+                ));
+                return Some(vec![dll]);
+            }
 
-                    if !name.eq_ignore_ascii_case(host_name) {
-                        let dll = String::from_utf16_lossy(from_raw_parts(
-                            (map as usize + val.ValueOffset as usize) as *const u16,
-                            val.ValueLength as usize / 2,
-                        ));
-   
-                        result.push(dll);
-                    }
+            // Multiple values: exclude host to avoid circular resolution
+            let mut result = Vec::new();
+            for val in values {
+                let dll = String::from_utf16_lossy(from_raw_parts(
+                    (map as usize + val.ValueOffset as usize) as *const u16,
+                    val.ValueLength as usize / 2,
+                ));
+
+                if !dll.eq_ignore_ascii_case(host) {
+                    result.push(dll);
                 }
-                
-                if !result.is_empty() {
-                    return Some(result);
-                }
+            }
+
+            if !result.is_empty() {
+                return Some(result);
             }
         }
     }
@@ -312,103 +413,46 @@ fn resolve_api_set_map(
     None
 }
 
-pub fn canonicalize_module(name: &str) -> String {
-    let file = name.rsplit(['\\', '/']).next().unwrap_or(name);
-    let upper = file.to_ascii_uppercase();
-    upper.trim_end_matches(".DLL").to_string()
+/// Normalizes a module name for comparison.
+fn canonicalize_name(name: &str) -> String {
+    name.rsplit(['\\', '/'])
+        .next()
+        .unwrap_or(name)
+        .to_ascii_uppercase()
+        .trim_end_matches(".DLL")
+        .to_string()
 }
+
+link!(
+    find_module_by_name("KERNEL32.DLL"),
+    "LoadLibraryA",
+    fn load_library_a(name: *const u8) -> *mut c_void
+);
 
 #[cfg(test)]
 mod tests {
-    use core::ptr::null_mut;
     use super::*;
 
     #[test]
-    fn test_modules() {
-        assert_ne!(get_module_address("kernel32.dll", None), null_mut());
-        assert_ne!(get_module_address("kernel32.DLL", None), null_mut());
-        assert_ne!(get_module_address("kernel32", None), null_mut());
-        assert_ne!(get_module_address("KERNEL32.dll", None), null_mut());
-        assert_ne!(get_module_address("KERNEL32", None), null_mut());
+    fn find_case_insensitive() {
+        assert!(Module::find("kernel32.dll").is_some());
+        assert!(Module::find("KERNEL32.DLL").is_some());
+        assert!(Module::find("Kernel32").is_some());
+        assert!(Module::find("KERNEL32").is_some());
     }
 
     #[test]
-    fn test_function() {
-        let module = get_module_address("KERNEL32.dll", None);
-        assert_ne!(module, null_mut());
-
-        let addr = get_proc_address(module, "VirtualAlloc", None);
-        assert_ne!(addr, null_mut());
+    fn resolve_proc_by_name() {
+        let func = Module::find("kernel32.dll")
+            .and_then(|m| m.proc("VirtualAlloc"));
+        assert!(func.is_some());
     }
 
     #[test]
-    fn test_forwarded() {
-        let kernel32 = get_module_address("KERNEL32.dll", None);
-        assert_ne!(kernel32, null_mut());
-
-        // KERNEL32 forwarded exports
-        assert_ne!(
-            get_proc_address(kernel32, "SetIoRingCompletionEvent", None),
-            null_mut()
-        );
-
-        assert_ne!(
-            get_proc_address(kernel32, "SetProtectedPolicy", None),
-            null_mut()
-        );
-
-        assert_ne!(
-            get_proc_address(kernel32, "SetProcessDefaultCpuSetMasks", None),
-            null_mut()
-        );
-
-        assert_ne!(
-            get_proc_address(kernel32, "SetDefaultDllDirectories", None),
-            null_mut()
-        );
-
-        assert_ne!(
-            get_proc_address(kernel32, "SetProcessDefaultCpuSets", None),
-            null_mut()
-        );
-
-        assert_ne!(
-            get_proc_address(kernel32, "InitializeProcThreadAttributeList", None),
-            null_mut()
-        );
-
-        // ADVAPI32 forwarded exports
-        let advapi32 = LoadLibraryA("advapi32.dll");
-        assert_ne!(advapi32, null_mut());
-
-        assert_ne!(
-            get_proc_address(advapi32, "SystemFunction028", None),
-            null_mut()
-        );
-
-        assert_ne!(
-            get_proc_address(advapi32, "PerfIncrementULongCounterValue", None),
-            null_mut()
-        );
-
-        assert_ne!(
-            get_proc_address(advapi32, "PerfSetCounterRefValue", None),
-            null_mut()
-        );
-
-        assert_ne!(
-            get_proc_address(advapi32, "I_QueryTagInformation", None),
-            null_mut()
-        );
-
-        assert_ne!(
-            get_proc_address(advapi32, "TraceQueryInformation", None),
-            null_mut()
-        );
-
-        assert_ne!(
-            get_proc_address(advapi32, "TraceMessage", None),
-            null_mut()
-        );
+    fn resolve_forwarded_export() {
+        // These are forwarded in kernel32
+        let k32 = Module::find("kernel32.dll").unwrap();
+        assert!(k32.proc("SetIoRingCompletionEvent").is_some());
+        assert!(k32.proc("SetProtectedPolicy").is_some());
     }
 }

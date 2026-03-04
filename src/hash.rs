@@ -1,6 +1,17 @@
 //! Runtime hash functions.
 
 /// Computes a CRC32-based hash for a given string.
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::crc32ba;
+///
+/// // Pre-computed hash for module resolution
+/// const NTDLL_HASH: u32 = 0x1C8BDEBA;
+/// assert_eq!(crc32ba("NTDLL.DLL"), NTDLL_HASH);
+/// ```
+#[inline]
 pub fn crc32ba(string: &str) -> u32 {
     let mut u_hash = 0xFFFF_EFFF;
 
@@ -17,6 +28,17 @@ pub fn crc32ba(string: &str) -> u32 {
 }
 
 /// Computes a Jenkins hash (variant 3) for a given string.
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::jenkins3;
+///
+/// // Pre-computed hash for NtAllocateVirtualMemory
+/// const NT_ALLOC_HASH: u32 = 3037277565;
+/// assert_eq!(jenkins3("NtAllocateVirtualMemory"), NT_ALLOC_HASH);
+/// ```
+#[inline]
 pub fn jenkins3(string: &str) -> u32 {
     let mut a: u32 = 0xDEAD_BEEF + string.len() as u32;
     let mut b: u32 = a;
@@ -84,6 +106,17 @@ pub fn jenkins3(string: &str) -> u32 {
 }
 
 /// Computes a Jenkins One-at-a-Time hash for a given string.
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::jenkins;
+///
+/// // Pre-computed hash for KERNEL32.DLL
+/// const KERNEL32_HASH: u32 = 3425263715;
+/// assert_eq!(jenkins("KERNEL32.DLL"), KERNEL32_HASH);
+/// ```
+#[inline]
 pub fn jenkins(string: &str) -> u32 {
     let mut hash = 0;
 
@@ -101,6 +134,17 @@ pub fn jenkins(string: &str) -> u32 {
 }
 
 /// Computes a DJB2 hash for a given string.
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::djb2;
+///
+/// // Pre-computed hash for kernel32.dll
+/// const KERNEL32_HASH: u32 = 1883303541;
+/// assert_eq!(djb2("kernel32.dll"), KERNEL32_HASH);
+/// ```
+#[inline]
 pub fn djb2(string: &str) -> u32 {
     let mut hash = 5381u32;
 
@@ -112,6 +156,17 @@ pub fn djb2(string: &str) -> u32 {
 }
 
 /// Computes an FNV-1a hash for a given string.
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::fnv1a;
+///
+/// // Pre-computed hash for ntdll.dll
+/// const NTDLL_HASH: u32 = 0xA62A3B3B;
+/// assert_eq!(fnv1a("ntdll.dll"), NTDLL_HASH);
+/// ```
+#[inline]
 pub fn fnv1a(string: &str) -> u32 {
     const FNV_OFFSET_BASIS: u32 = 0x811C_9DC5;
     const FNV_PRIME: u32 = 0x0100_0193;
@@ -126,6 +181,16 @@ pub fn fnv1a(string: &str) -> u32 {
 }
 
 /// Computes a MurmurHash3 (32-bit) for a given string.
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::murmur3;
+///
+/// let hash = murmur3("NTDLL.DLL");
+/// assert_eq!(hash, 2788516083);
+/// ```
+#[inline]
 pub fn murmur3(string: &str) -> u32 {
     const SEED: u32 = 0x9747B28C;
     const C1: u32 = 0xCC9E_2D51;
@@ -174,6 +239,17 @@ pub fn murmur3(string: &str) -> u32 {
 }
 
 /// Computes an SDBM hash for a given string.
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::sdbm;
+///
+/// // Pre-computed hash for VirtualAlloc
+/// const VIRTUAL_ALLOC_HASH: u32 = 0x39D1A64A;
+/// assert_eq!(sdbm("VirtualAlloc"), VIRTUAL_ALLOC_HASH);
+/// ```
+#[inline]
 pub fn sdbm(string: &str) -> u32 {
     let mut hash = 0u32;
 
@@ -188,6 +264,16 @@ pub fn sdbm(string: &str) -> u32 {
 }
 
 /// Computes a simple additive hash (Lose-Lose Hash) for a given string.
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::loselose;
+///
+/// let hash = loselose("test");
+/// assert_eq!(hash, 448); // 't' + 'e' + 's' + 't'
+/// ```
+#[inline]
 pub fn loselose(string: &str) -> u32 {
     let mut hash = 0u32;
     for c in string.bytes() {
@@ -198,6 +284,17 @@ pub fn loselose(string: &str) -> u32 {
 }
 
 /// Computes the PJW hash (Peter J. Weinberger's hash function).
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::pjw;
+///
+/// // Pre-computed hash for CreateFileA
+/// const CREATE_FILE_HASH: u32 = 0x0AD68911;
+/// assert_eq!(pjw("CreateFileA"), CREATE_FILE_HASH);
+/// ```
+#[inline]
 pub fn pjw(string: &str) -> u32 {
     const BITS_IN_UNSIGNED_INT: u32 = 32;
     const THREE_QUARTERS: u32 = (BITS_IN_UNSIGNED_INT * 3) / 4;
@@ -218,7 +315,18 @@ pub fn pjw(string: &str) -> u32 {
     hash
 }
 
-/// JS Hash is a hashing algorithm created by Justin Sobel.
+/// Computes the JS hash (Justin Sobel's hash function).
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::js;
+///
+/// // Pre-computed hash for ReadFile
+/// const READ_FILE_HASH: u32 = 0xF70408B1;
+/// assert_eq!(js("ReadFile"), READ_FILE_HASH);
+/// ```
+#[inline]
 pub fn js(string: &str) -> u32 {
     let mut hash = 1315423911u32;
 
@@ -229,7 +337,18 @@ pub fn js(string: &str) -> u32 {
     hash
 }
 
-/// Computes the AP Hash (Arash Partow's hash function).
+/// Computes the AP hash (Arash Partow's hash function).
+///
+/// # Examples
+///
+/// ```
+/// use dinvk::hash::ap;
+///
+/// // Pre-computed hash for WriteFile
+/// const WRITE_FILE_HASH: u32 = 0xA85A7ADD;
+/// assert_eq!(ap("WriteFile"), WRITE_FILE_HASH);
+/// ```
+#[inline]
 pub fn ap(string: &str) -> u32 {
     let mut hash = 0xAAAAAAAAu32;
 

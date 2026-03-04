@@ -1,37 +1,63 @@
 [package]
 name = "dinvk"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 authors = ["João Victor"]
-description = "Dynamically invoke arbitrary code in Rust (Dinvoke)"
+description = "Dynamically invoke arbitrary code in Rust"
 repository = "https://github.com/joaoviictorti/dinvk"
 homepage = "https://github.com/joaoviictorti/dinvk"
 documentation = "https://docs.rs/dinvk/latest"
 keywords = ["hacking", "dinvoke", "windows", "rust", "redteam"]
 categories = ["os", "security", "no-std"]
+rust-version = "1.88"
 include = [
     "src/**",
     "Cargo.toml",
     "README.md",
-    "LICENSE",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
 ]
 
-[lib]
-doctest = false
-
 [dependencies]
-cfg-if = "1.0.0"
-obfstr = "0.4.4"
-spin = "0.10.0"
-windows-targets = "0.53.4"
-bitflags = { version = "2.8.0", default-features = false }
+phnt = "0.1.2"
+thiserror = { version = "2.0.17", default-features = false }
+
+[dependencies.windows-sys]
+version = "0.61.2"
+features = [
+    "Win32_System_Diagnostics_Debug", 
+    "Win32_System_SystemInformation",
+    "Win32_System_SystemServices"
+]
 
 [features]
 default = []
 alloc = []
-panic = []
+
+[workspace.lints.rust]
+missing_docs = "deny"
+absolute_paths_not_starting_with_crate = "deny"
+missing_copy_implementations = "deny"
+redundant_imports = "deny"
+trivial_numeric_casts = "deny"
+unused_crate_dependencies = "deny"
+unused_import_braces = "warn"
+unused_qualifications = "warn"
+unreachable_pub = "warn"
+unnameable_types = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+private_intra_doc_links = "deny"
+missing_crate_level_docs = "deny"
+private_doc_tests = "deny"
+invalid_rust_codeblocks = "deny"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"

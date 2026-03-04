@@ -1,221 +1,88 @@
 # dinvk
 
-![Rust](https://img.shields.io/badge/made%20with-Rust-red)
-![crate](https://img.shields.io/crates/v/dinvk.svg)
-![docs](https://docs.rs/dinvk/badge.svg)
-![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-brightgreen)
-[![Actions status](https://github.com/joaoviictorti/dinvk/actions/workflows/ci.yml/badge.svg)](https://github.com/joaoviictorti/dinvk/actions)
+[![crate][crate-image]][crate-link]
+[![Docs][docs-image]][docs-link]
+[![Build Status][build-image]][build-link]
+![Apache2/MIT licensed][license-image]
+![Rust Version][rustc-image]
 
-Dynamically invoke arbitrary code with Rust tricks, `#[no_std]` support, and compatibility for `x64`, `x86`, `ARM64` and `WoW64` (DInvoke)
+A Rust library for dynamic code invocation on Windows. It resolves modules and exports at runtime by walking the PEB, eliminating the need for static linking or direct Win32 API calls. Built with `#[no_std]` support and compatible with `x64`, `x86`, `ARM64`, and `WoW64` architectures.
 
-This tool is a Rust version of [DInvoke](https://github.com/TheWover/DInvoke), originally written in C#, with additional features added.
+## Getting Started
 
-## Table of Contents
+Add it as a library to your project:
 
-- [Features](#features)
-- [Getting started](#getting-started)
-- [Usage](#usage)
-    - [Dynamically Invoke Arbitrary Code](#dynamically-invoke-arbitrary-code)
-    - [Retrieving Module Addresses and Exported APIs](#retrieving-module-addresses-and-exported-apis)
-    - [Indirect syscall](#indirect-syscall)
-    - [Different Hash Methods for API Hashing](#different-hash-methods-for-api-hashing)
-    - [Tampered Syscalls Via Hardware BreakPoints](#tampered-syscalls-via-hardware-breakpoints)
-    - [Support for no_std Environments](#support-for-no_std-environments)
-- [License](#license)
-
-## Features
-
-- ✅ Dynamically invoke arbitrary code (*x64*, *x86*, *Wow64*, *ARM64*).
-- ✅ Indirect Syscall (*x64*, *x86*, *Wow64*).
-- ✅ Tampered Syscalls Via Hardware BreakPoints (*x64*, *x86*, *Wow64*).
-- ✅ Supports `#[no_std]` environments (with `alloc`).
-- ✅ Retrieve exported API addresses via string, ordinal, and hashing.
-- ✅ Retrieve module addresses via string and hashing.
-- ✅ Supports multiple 32-bit hash algorithms for API Hashing using `get_module_address` and `get_proc_address`: Jenkins3, Jenkins One-at-a-Time, DJB2, Murmur3, FNV-1a, SDBM, Lose, PJW, JS, and AP.
-
-## Getting started
-
-Add `dinvk` to your project by updating your `Cargo.toml`:
 ```bash
 cargo add dinvk
 ```
 
 ## Usage
 
-`dinvk` provides several features for invoking code dynamically, performing indirect syscalls and manipulating exported modules and APIs. Below are detailed examples of how to use each feature.
+### Module and Export Resolution
 
-### Dynamically Invoke Arbitrary Code
-
-Allows resolving and calling a function dynamically at runtime, avoiding static linking.
-
-* This example demonstrates the dynamic invocation of arbitrary code using `dinvoke!`, resolving function addresses at runtime without direct linking. In this case, `HeapAlloc` is dynamically called to allocate memory.
-* Using this macro is beneficial if you want to avoid having APIs directly listed in the `Import Address Table (IAT)` of your PE file.
+Locate loaded modules and resolve their exports by name, hash, or ordinal:
 
 ```rust
-use dinvk::module::get_module_address;
-use dinvk::winapis::GetProcessHeap;
-use dinvk::{types::HeapAllocFn, dinvoke};
-
-const HEAP_ZERO_MEMORY: u32 = 8u32;
-
-let kernel32 = get_module_address("KERNEL32.DLL", None);
-let addr = dinvoke!(
-    kernel32,
-    "HeapAlloc",
-    HeapAllocFn,
-    GetProcessHeap(),
-    HEAP_ZERO_MEMORY,
-    0x200
-);
-
-println!("[+] Address: {:?}", addr);
-```
-
-### Retrieving Module Addresses and Exported APIs
-
-Retrieves the base address of a module and resolves exported APIs using different methods: by string, ordinal, or hash.
-
-* In this example, the address of the `KERNEL32` module is retrieved using both a string and a hash (Jenkins hash).
-* Then, the `LoadLibrary` function address is resolved using the same methods, with an additional example using an ordinal number.
-
-```rust
-use dinvk::module::{get_module_address, get_proc_address};
+use dinvk::Module;
 use dinvk::hash::jenkins;
 
-// Retrieving module address via string and hash
-let kernel32 = get_module_address("KERNEL32.DLL", None);
-let kernel32 = get_module_address(3425263715u32, Some(jenkins));
+// By name
+let kernel32 = Module::find("kernel32.dll").unwrap();
+let load_library = kernel32.proc("LoadLibraryA").unwrap();
 
-// Retrieving exported API address via string, ordinal and hash
-let addr = get_proc_address(kernel32, "LoadLibraryA", None);
-let addr = get_proc_address(kernel32, 3962820501u32, Some(jenkins));
-let addr = get_proc_address(kernel32, 997, None);
+// By hash
+let kernel32 = Module::find_by_hash(3425263715, jenkins).unwrap();
+let func = kernel32.proc_by_hash(3962820501);
+
+// By ordinal
+let func = kernel32.proc_by_ordinal(997);
 ```
 
-### Indirect syscall
+### Dynamic Invocation
 
-Executes syscalls indirectly, bypassing user-mode API hooks and security monitoring tools.
-
-* Currently supporting x64, x86 and WoW64.
-* It uses techniques such as Hells Gate, Halos Gate, and Tartarus Gate to dynamically locate the System Service Number (SSN) and invoke the syscall indirectly.
+Invoke functions at runtime without static imports using the `dinvoke!` macro:
 
 ```rust
-use std::{ffi::c_void, ptr::null_mut};
-use dinvk::winapis::{NT_SUCCESS, NtCurrentProcess};
-use dinvk::{Dll, syscall, types::HANDLE};
+use std::ffi::c_void;
+use dinvk::{dinvoke, Module};
 
-// Memory allocation using a syscall
+type LoadLibraryAFn = extern "system" fn(*const u8) -> *mut c_void;
+
+let kernel32 = Module::find("kernel32.dll").unwrap();
+let handle = dinvoke!(
+    kernel32,
+    "LoadLibraryA",
+    LoadLibraryAFn,
+    b"ntdll.dll\0".as_ptr()
+);
+```
+
+### Indirect Syscalls
+
+Execute syscalls indirectly with SSN resolution via Hell's Gate, Halo's Gate, and Tartarus Gate techniques:
+
+```rust
+use std::ffi::c_void; 
+use std::ptr::null_mut;
+use dinvk::syscall;
+
 let mut addr = null_mut::<c_void>();
-let mut size = (1 << 12) as usize;
-let status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess(), &mut addr, 0, &mut size, 0x3000, 0x04)
-    .ok_or("syscall resolution failed")?;
+let mut size = 4096usize;
 
-if !NT_SUCCESS(status) {
-    eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
-    return Ok(());
-}
-```
+let status = syscall!(
+    "NtAllocateVirtualMemory",
+    -1isize as *mut c_void,
+    &mut addr,
+    0,
+    &mut size,
+    0x3000,
+    0x04
+);
 
-### Different Hash Methods for API Hashing
-
-Supports various hashing algorithms for API resolution, improving stealth and flexibility.
-
-* Currently, the library only supports 32-bit hashes for API lookup.
-
-```rust
-use dinvk::hash::*;
-
-println!("{}", jenkins("dinvk"));
-println!("{}", jenkins3("dinvk"));
-println!("{}", ap("dinvk"));
-println!("{}", js("dinvk"));
-println!("{}", murmur3("dinvk"));
-println!("{}", fnv1a("dinvk"));
-println!("{}", djb2("dinvk"));
-println!("{}", crc32ba("dinvk"));
-println!("{}", loselose("dinvk"));
-println!("{}", pjw("dinvk"));
-println!("{}", sdbm("dinvk"));
-```
-
-### Tampered Syscalls Via Hardware BreakPoints
-
-Utilizes hardware breakpoints to manipulate syscall parameters before execution, bypassing security hooks.
-
-* The library includes several API wrappers that leverage DInvoke and support hardware breakpoints to spoof syscall arguments dynamically.
-* These breakpoints modify syscall parameters after security monitoring tools inspect them but before the syscall executes, effectively bypassing detection.
-* Currently supporting x64, x86 and WoW64.
-* You can find the full list of wrapped functions in the [winapis](https://github.com/joaoviictorti/dinvk/tree/main/src/winapis.rs) module.
-
-```rust
-use dinvk::{
-    types::HANDLE,
-    breakpoint::{
-        set_use_breakpoint, 
-        veh_handler
-    },
-};
-use dinvk::winapis::{
-    NT_SUCCESS,
-    NtAllocateVirtualMemory,
-    AddVectoredExceptionHandler, 
-    RemoveVectoredExceptionHandler,
-};
-
-// Enabling breakpoint hardware
-set_use_breakpoint(true);
-let handle = AddVectoredExceptionHandler(0, Some(veh_handler));
-
-// Allocating memory and using breakpoint hardware
-let mut addr = std::ptr::null_mut();
-let mut size = 1 << 12;
-let status = NtAllocateVirtualMemory(-1isize as HANDLE, &mut addr, 0, &mut size, 0x3000, 0x04);
-if !NT_SUCCESS(status) {
-    eprintln!("[-] NtAllocateVirtualMemory Failed With Status: {}", status);
-    return Ok(());
-}
-
-// Disabling breakpoint hardware
-set_use_breakpoint(false);
-RemoveVectoredExceptionHandler(handle);
-```
-
-### Support for no_std Environments
-
-Enables `#[no_std]` compatibility for environments without the Rust standard library.
-
-* To enable `#[no_std]` support, define the required features in your `Cargo.toml`.
-
-```toml
-[dependencies]
-dinvk = { version = "<version>", features = ["alloc", "panic"] }
-```
-
-* Running in `#[no_std]` Mode.
-
-```rust,non_run
-#![no_std]
-#![no_main]
-
-use dinvk::allocator::WinHeap;
-use dinvk::module::{get_ntdll_address, get_proc_address};
-use dinvk::println;
-
-#[unsafe(no_mangle)]
-fn main() -> u8 {
-    let addr = get_proc_address(get_ntdll_address(), "NtOpenProcess", None);
-    println!("[+] NtOpenProcess: {:?}", addr);
-
-    0
-}
-
-#[global_allocator]
-static ALLOCATOR: WinHeap = WinHeap;
-
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(info: &core::panic::PanicInfo) -> ! {
-    dinvk::panic::panic_handler(info)
+match status {
+    Ok(0) => println!("allocated at {:?}", addr),
+    Ok(s) => eprintln!("NtAllocateVirtualMemory failed: {s:#X}"),
+    Err(e) => eprintln!("syscall resolution failed: {e}"),
 }
 ```
 
@@ -231,4 +98,16 @@ at your option.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in dinvk
 by you, as defined in the Apache-2.0 license, shall be dually licensed as above, without any
+
 additional terms or conditions.
+
+[//]: # (badges)
+
+[crate-image]: https://img.shields.io/crates/v/dinvk?logo=rust
+[crate-link]: https://crates.io/crates/dinvk
+[docs-image]: https://docs.rs/dinvk/badge.svg
+[docs-link]: https://docs.rs/dinvk/
+[build-image]: https://github.com/joaoviictorti/dinvk/actions/workflows/ci.yml/badge.svg
+[build-link]: https://github.com/joaoviictorti/dinvk/actions/workflows/ci.yml
+[license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
+[rustc-image]: https://img.shields.io/badge/rustc-1.88+-blue.svg
