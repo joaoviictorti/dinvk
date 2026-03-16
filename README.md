@@ -4,9 +4,8 @@
 [![Docs][docs-image]][docs-link]
 [![Build Status][build-image]][build-link]
 ![Apache2/MIT licensed][license-image]
-![Rust Version][rustc-image]
 
-A Rust library for dynamic code invocation on Windows. It resolves modules and exports at runtime by walking the PEB, eliminating the need for static linking or direct Win32 API calls. Built with `#[no_std]` support and compatible with `x64`, `x86`, `ARM64`, and `WoW64` architectures.
+A Rust library for dynamic code invocation on Windows. It resolves modules and exports at runtime by walking the PEB, eliminating the need for static linking or direct Win32 API calls.
 
 ## Getting Started
 
@@ -16,27 +15,7 @@ Add it as a library to your project:
 cargo add dinvk
 ```
 
-## Usage
-
-### Module and Export Resolution
-
-Locate loaded modules and resolve their exports by name, hash, or ordinal:
-
-```rust
-use dinvk::Module;
-use dinvk::hash::jenkins;
-
-// By name
-let kernel32 = Module::find("kernel32.dll").unwrap();
-let load_library = kernel32.proc("LoadLibraryA").unwrap();
-
-// By hash
-let kernel32 = Module::find_by_hash(3425263715, jenkins).unwrap();
-let func = kernel32.proc_by_hash(3962820501, jenkins).unwrap();
-
-// By ordinal
-let func = kernel32.proc_by_ordinal(997).unwrap();
-```
+## Example
 
 ### Dynamic Invocation
 
@@ -68,7 +47,6 @@ use dinvk::syscall;
 
 let mut addr = null_mut::<c_void>();
 let mut size = 4096usize;
-
 let status = syscall!(
     "NtAllocateVirtualMemory",
     -1isize as *mut c_void,
@@ -78,13 +56,9 @@ let status = syscall!(
     0x3000,
     0x04
 );
-
-match status {
-    Ok(0) => println!("allocated at {:?}", addr),
-    Ok(s) => eprintln!("NtAllocateVirtualMemory failed: {s:#X}"),
-    Err(e) => eprintln!("syscall resolution failed: {e}"),
-}
 ```
+
+For more information, including a more detailed overview of dinvk, [visit the documentation](https://docs.rs/dinvk).
 
 ## License
 
@@ -110,4 +84,3 @@ additional terms or conditions.
 [build-image]: https://github.com/joaoviictorti/dinvk/actions/workflows/ci.yml/badge.svg
 [build-link]: https://github.com/joaoviictorti/dinvk/actions/workflows/ci.yml
 [license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
-[rustc-image]: https://img.shields.io/badge/rustc-1.88+-blue.svg
