@@ -1,20 +1,23 @@
 use core::ptr::null_mut;
 use core::slice::from_raw_parts;
-use core::ffi::{c_void, CStr};
+use core::ffi::c_void;
 use alloc::format;
 use alloc::vec;
 use alloc::vec::Vec;
 use alloc::string::{String, ToString};
 
-use windows_sys::Win32::System::SystemServices::IMAGE_EXPORT_DIRECTORY;
+use pelite::pe::exports::Export;
+use pelite::pe::{Pe, PeView};
 use phnt::ffi::{
     API_SET_NAMESPACE_ENTRY, API_SET_VALUE_ENTRY,
     LDR_DATA_TABLE_ENTRY, LIST_ENTRY
 };
 
 use crate::link;
-use crate::pe::PeImage;
 use crate::env::nt_current_peb;
+
+/// Maximum number of chained forwarded exports that may be resolved.
+const MAX_FORWARD_DEPTH: usize = 32;
 
 /// A handle to a loaded Windows module.
 ///
@@ -75,9 +78,14 @@ impl Module {
     /// # use dinvk::Module;
     ///
     /// let base = 0x7fff00000000 as *mut _;
-    /// let module = Module::from_ptr(base);
+    /// let module = unsafe { Module::from_ptr(base) };
     /// ```
-    pub fn from_ptr(base: *mut c_void) -> Option<Self> {
+    ///
+    /// # Safety
+    ///
+    /// `base` must point to the start of a valid PE image that remains loaded
+    /// for every use of the returned module.
+    pub unsafe fn from_ptr(base: *mut c_void) -> Option<Self> {
         if base.is_null() {
             None
         } else {
@@ -98,7 +106,7 @@ impl Module {
     pub fn current() -> Option<Self> {
         let peb = nt_current_peb();
         let base = unsafe { (*peb).ImageBaseAddress };
-        Self::from_ptr(base)
+        unsafe { Self::from_ptr(base) }
     }
 
     /// Returns the module base address.
@@ -117,7 +125,7 @@ impl Module {
     ///     .and_then(|m| m.proc("VirtualAlloc"));
     /// ```
     pub fn proc(&self, name: &str) -> Option<*mut c_void> {
-        let addr = self.resolve_export(ExportLookup::Name(name));
+        let addr = self.resolve_export(ExportLookup::Name(name), 0);
         if addr.is_null() {
             None
         } else {
@@ -137,7 +145,7 @@ impl Module {
     ///     .and_then(|m| m.proc_by_hash(0xDEADBEEF, jenkins));
     /// ```
     pub fn proc_by_hash(&self, hash: u32, hash_fn: fn(&str) -> u32) -> Option<*mut c_void> {
-        let addr = self.resolve_export(ExportLookup::Hash(hash, hash_fn));
+        let addr = self.resolve_export(ExportLookup::Hash(hash, hash_fn), 0);
         if addr.is_null() {
             None
         } else {
@@ -156,7 +164,7 @@ impl Module {
     ///     .and_then(|m| m.proc_by_ordinal(997));
     /// ```
     pub fn proc_by_ordinal(&self, ordinal: u16) -> Option<*mut c_void> {
-        let addr = self.resolve_export(ExportLookup::Ordinal(ordinal));
+        let addr = self.resolve_export(ExportLookup::Ordinal(ordinal), 0);
         if addr.is_null() { 
             None 
         } else { 
@@ -165,47 +173,43 @@ impl Module {
     }
 
     /// Internal export resolution handling all lookup types.
-    fn resolve_export(&self, lookup: ExportLookup) -> *mut c_void {
-        let pe = PeImage::parse(self.0);
+    fn resolve_export(&self, lookup: ExportLookup, depth: usize) -> *mut c_void {
+        if depth >= MAX_FORWARD_DEPTH {
+            return null_mut();
+        }
+
+        let pe = unsafe { PeView::module(self.0.cast()) };
         let base = self.0 as usize;
 
-        // Get export data from PE
-        let Some(exp) = pe.exports().data() else {
+        let Ok(exports) = pe.exports() else {
+            return null_mut();
+        };
+        let Ok(by) = exports.by() else {
             return null_mut();
         };
 
-        // Handle ordinal lookup
-        if let ExportLookup::Ordinal(ordinal) = lookup {
-            let ordinal = ordinal as u32;
-            if ordinal < exp.base_ordinal || ordinal >= exp.base_ordinal + exp.num_functions {
-                return null_mut();
+        let export = match lookup {
+            ExportLookup::Name(name) => by.name_linear(name.as_bytes()).ok(),
+            ExportLookup::Ordinal(ordinal) => by.ordinal(ordinal).ok(),
+            ExportLookup::Hash(target, hash_fn) => by.iter_names().find_map(|(name, export)| {
+                let name = name.ok()?.to_str().ok()?;
+                (hash_fn(name) == target).then(|| export.ok()).flatten()
+            }),
+        };
+
+        match export {
+            Some(Export::Symbol(rva)) => (base + *rva as usize) as *mut c_void,
+            Some(Export::Forward(forwarder)) => {
+                let host_module = exports
+                    .dll_name()
+                    .ok()
+                    .and_then(|name| name.to_str().ok())
+                    .unwrap_or("");
+                let forwarder = forwarder.to_str().unwrap_or("");
+                Self::resolve_forward(host_module, forwarder, depth + 1)
             }
-            let idx = (ordinal - exp.base_ordinal) as usize;
-            return (base + exp.addresses[idx] as usize) as *mut c_void;
+            None => null_mut(),
         }
-
-        // Search by name or hash
-        for i in 0..exp.names.len() {
-            let name = unsafe {
-                CStr::from_ptr((base + exp.names[i] as usize) as *const i8)
-                    .to_str()
-                    .unwrap_or("")
-            };
-
-            let matched = match lookup {
-                ExportLookup::Name(target) => name == target,
-                ExportLookup::Hash(target, hash_fn) => hash_fn(name) == target,
-                ExportLookup::Ordinal(_) => unreachable!(),
-            };
-
-            if matched {
-                let ordinal = exp.ordinals[i] as usize;
-                let address = (base + exp.addresses[ordinal] as usize) as *mut c_void;
-                return self.resolve_forward(exp.dll_name, address, exp.directory, exp.size);
-            }
-        }
-
-        null_mut()
     }
 
     /// Handles forwarded exports.
@@ -213,29 +217,9 @@ impl Module {
     /// Forwarded exports point to implementations in other DLLs. The forwarder
     /// string format is "MODULE.FunctionName". ApiSet contracts (api-ms-*, ext-ms-*)
     /// are resolved through the PEB ApiSetMap.
-    fn resolve_forward(
-        &self,
-        host_module: &str,
-        address: *mut c_void,
-        export_dir: *const IMAGE_EXPORT_DIRECTORY,
-        export_size: usize,
-    ) -> *mut c_void {
-        // Check if address is within the export directory (indicates forwarder)
-        let addr = address as usize;
-        let dir_start = export_dir as usize;
-        let dir_end = dir_start + export_size;
-        if addr < dir_start || addr >= dir_end {
-            return address;
-        }
-
-        let forwarder = unsafe {
-            CStr::from_ptr(address as *const i8)
-                .to_str()
-                .unwrap_or_default()
-        };
-
+    fn resolve_forward(host_module: &str, forwarder: &str, depth: usize) -> *mut c_void {
         let Some((module_name, function_name)) = forwarder.split_once('.') else {
-            return address;
+            return null_mut();
         };
 
         // Resolve ApiSet contracts
@@ -248,7 +232,7 @@ impl Module {
 
         // Try each resolved module
         let Some(modules) = target_modules else {
-            return address;
+            return null_mut();
         };
 
         for module in modules {
@@ -256,17 +240,27 @@ impl Module {
                 .or_else(|| {
                     let cstr = format!("{module}\0");
                     let ptr = unsafe { load_library_a(cstr.as_ptr()).ok()? };
-                    Module::from_ptr(ptr)
+                    unsafe { Module::from_ptr(ptr) }
                 });
 
             if let Some(m) = target {
-                if let Some(resolved) = m.proc(function_name) {
+                let resolved = function_name
+                    .strip_prefix('#')
+                    .and_then(|ordinal| ordinal.parse().ok())
+                    .map(|ordinal| m.resolve_export(ExportLookup::Ordinal(ordinal), depth))
+                    .filter(|address| !address.is_null())
+                    .or_else(|| {
+                        let address = m.resolve_export(ExportLookup::Name(function_name), depth);
+                        (!address.is_null()).then_some(address)
+                    });
+
+                if let Some(resolved) = resolved {
                     return resolved;
                 }
             }
         }
 
-        address
+        null_mut()
     }
 }
 
@@ -291,6 +285,7 @@ impl From<&Module> for *mut c_void {
 }
 
 /// Export lookup type for internal dispatch.
+#[derive(Clone, Copy)]
 enum ExportLookup<'a> {
     Name(&'a str),
     Hash(u32, fn(&str) -> u32),
@@ -455,4 +450,5 @@ mod tests {
         assert!(k32.proc("SetIoRingCompletionEvent").is_some());
         assert!(k32.proc("SetProtectedPolicy").is_some());
     }
+
 }

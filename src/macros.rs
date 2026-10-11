@@ -23,12 +23,22 @@
 macro_rules! dinvoke {
     ($module:expr, $function:expr, $ty:ty, $($arg:expr),*) => {{
         let base: *mut core::ffi::c_void = $module.into();
-        $crate::resolve::resolve_fn(base, $function)
+        let function = $function;
+        unsafe { $crate::resolve::resolve_fn(base, function) }
             .map(|addr| {
                 let func = unsafe { core::mem::transmute::<*mut core::ffi::c_void, $ty>(addr) };
                 unsafe { func($($arg),*) }
             })
     }};
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __count_args {
+    () => { 0u32 };
+    ($head:expr $(, $tail:expr)*) => {
+        1u32 + $crate::__count_args!($($tail),*)
+    };
 }
 
 /// Executes a syscall by dynamically resolving the SSN and syscall address.
@@ -69,7 +79,7 @@ macro_rules! syscall {
         {
             $crate::resolve::resolve_syscall($function_name)
                 .map(|(ssn, syscall_addr)| {
-                    let argc = 0u32 $(+ { let _ = &$y; 1u32 })+;
+                    let argc = $crate::__count_args!($($y),+);
                     unsafe { $crate::sys::asm::do_syscall(ssn, syscall_addr, argc, $($y),+) }
                 })
         }
@@ -78,7 +88,7 @@ macro_rules! syscall {
         {
             $crate::resolve::resolve_syscall($function_name)
                 .map(|fn_ptr| {
-                    let argc = 0u32 $(+ { let _ = &$y; 1u32 })+;
+                    let argc = $crate::__count_args!($($y),+);
                     unsafe { $crate::sys::asm::do_syscall(fn_ptr, argc, $($y),+) }
                 })
         }

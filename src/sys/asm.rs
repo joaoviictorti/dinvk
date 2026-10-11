@@ -5,9 +5,9 @@ core::arch::global_asm!("
 .section .text
 
 do_syscall:
-    mov [rsp - 0x8],  rsi
-    mov [rsp - 0x10], rdi
-    mov [rsp - 0x18], r12
+    mov [rsp + 0x08], rsi
+    mov [rsp + 0x10], rdi
+    mov [rsp + 0x18], r12
 
     mov eax, ecx
     mov r12, rdx
@@ -29,9 +29,9 @@ skip:
 
     mov rcx, r12
 
-    mov rsi, [rsp - 0x8]
-    mov rdi, [rsp - 0x10]
-    mov r12, [rsp - 0x18]
+    mov rsi, [rsp + 0x08]
+    mov rdi, [rsp + 0x10]
+    mov r12, [rsp + 0x18]
 
     jmp rcx
 ");

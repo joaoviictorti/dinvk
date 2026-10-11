@@ -3,8 +3,8 @@
 use core::ptr::null_mut;
 use alloc::alloc::{GlobalAlloc, Layout};
 
-use phnt::ffi::{RtlAllocateHeap, RtlFreeHeap};
-use windows_sys::Win32::Foundation::HANDLE;
+use phnt::ffi::{HANDLE, RtlAllocateHeap, RtlFreeHeap};
+
 use crate::env::nt_current_peb;
 
 /// Global allocator backed by the Windows process heap.
@@ -29,6 +29,7 @@ use crate::env::nt_current_peb;
 pub struct Heap;
 
 impl Heap {
+    /// Creates an allocator backed by the current process heap.
     pub const fn empty() -> Self {
         Self
     }
@@ -45,7 +46,17 @@ unsafe impl GlobalAlloc for Heap {
             return null_mut();
         }
 
-        (unsafe { RtlAllocateHeap(self.heap_handle(), 0, layout.size() as u64) }) as *mut u8
+        const HEAP_ALIGNMENT: usize = if cfg!(target_pointer_width = "64") { 16 } else { 8 };
+
+        if layout.align() > HEAP_ALIGNMENT {
+            return null_mut();
+        }
+
+        let Ok(size) = layout.size().try_into() else {
+            return null_mut();
+        };
+
+        unsafe { RtlAllocateHeap(self.heap_handle(), 0, size) }.cast()
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
@@ -53,7 +64,7 @@ unsafe impl GlobalAlloc for Heap {
             return;
         }
     
-        // Zero memory before freeing for security
+        // Zero memory before freeing for security.
         unsafe { core::ptr::write_bytes(ptr, 0, layout.size()) };
         unsafe { RtlFreeHeap(self.heap_handle(), 0, ptr.cast()) };
     }

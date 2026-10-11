@@ -7,8 +7,13 @@ use crate::error::{Error, Result};
 use crate::sys::{get_syscall_address, find_ssn};
 
 /// Resolves a function address from a module.
-pub fn resolve_fn(module: *mut c_void, function: &str) -> Result<*mut c_void> {
-    Module::from_ptr(module)
+///
+/// # Safety
+///
+/// `module` must point to the start of a valid PE image that remains loaded
+/// while the returned address is used.
+pub unsafe fn resolve_fn(module: *mut c_void, function: &str) -> Result<*mut c_void> {
+    unsafe { Module::from_ptr(module) }
         .and_then(|m| m.proc(function))
         .ok_or_else(|| Error::FunctionNotFound(function.to_string()))
 }
@@ -23,10 +28,10 @@ pub fn resolve_syscall(function: &str) -> Result<(u16, usize)> {
         .proc(function)
         .ok_or_else(|| Error::FunctionNotFound(function.to_string()))?;
 
-    let ssn = find_ssn(function, ntdll.base())
+    let ssn = unsafe { find_ssn(function, &ntdll) }
         .ok_or_else(|| Error::SsnNotFound(function.to_string()))?;
 
-    let syscall_addr = get_syscall_address(addr)
+    let syscall_addr = unsafe { get_syscall_address(addr) }
         .ok_or_else(|| Error::SyscallAddrNotFound(function.to_string()))?;
 
     Ok((ssn, syscall_addr))

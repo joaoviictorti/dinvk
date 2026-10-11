@@ -1,11 +1,13 @@
 //! Provides SSN (System Service Number) resolution and syscall address
 //! extraction for indirect syscall execution. 
 
-use core::ffi::{c_void, CStr};
+use core::ffi::c_void;
 use core::ptr::read;
 
+use pelite::pe::{Pe, PeView};
+
 use crate::hash::jenkins3;
-use crate::pe::PeImage;
+use crate::module::Module;
 
 #[doc(hidden)]
 pub mod asm;
@@ -34,26 +36,34 @@ const UP: isize = -32;
 /// # use dinvk::sys::find_ssn;
 ///
 /// let ntdll = Module::find("ntdll.dll").unwrap();
-/// if let Some(ssn) = find_ssn("NtAllocateVirtualMemory", ntdll.base()) {
+/// if let Some(ssn) = unsafe { find_ssn("NtAllocateVirtualMemory", &ntdll) } {
 ///     println!("SSN: {}", ssn);
 /// }
 /// ```
-pub fn find_ssn(function_name: &str, module: *mut c_void) -> Option<u16> {
-    let pe = PeImage::parse(module);
-    let exp = pe.exports().data()?;
-    let base = module as usize;
+///
+/// # Safety
+///
+/// `module` must be a valid, loaded copy of `ntdll.dll` whose syscall export
+/// stubs and their neighboring stubs are readable.
+pub unsafe fn find_ssn(function_name: &str, module: &Module) -> Option<u16> {
+    let base_address = module.base();
+    let pe = unsafe { PeView::module(base_address.cast()) };
+    let exports = pe.exports().ok()?;
+    let by = exports.by().ok()?;
+    let base = base_address as usize;
     let hash = jenkins3(function_name);
 
-    for i in 0..exp.names.len() {
-        let name = unsafe {
-            CStr::from_ptr((base + exp.names[i] as usize) as *const i8)
-                .to_str()
-                .unwrap_or("")
+    for (name, export) in by.iter_names() {
+        let Ok(name) = name else {
+            continue;
+        };
+        let Ok(name) = name.to_str() else {
+            continue;
         };
 
         if jenkins3(name) == hash {
-            let ordinal = exp.ordinals[i] as usize;
-            let address = (base + exp.addresses[ordinal] as usize) as *const u8;
+            let rva = export.ok()?.symbol()?;
+            let address = (base + rva as usize) as *const u8;
             return extract_ssn(address);
         }
     }
@@ -76,8 +86,8 @@ fn extract_ssn(address: *const u8) -> Option<u16> {
             && read(address.add(6)) == 0x00
             && read(address.add(7)) == 0x00
         {
-            let high = read(address.add(5)) as u16;
-            let low = read(address.add(4)) as u16;
+            let high = u16::from(read(address.add(5)));
+            let low = u16::from(read(address.add(4)));
             return Some((high << 8) | low);
         }
 
@@ -104,6 +114,9 @@ fn extract_ssn(address: *const u8) -> Option<u16> {
 fn search_neighbors_x64(address: *const u8) -> Option<u16> {
     unsafe {
         for idx in 1..RANGE {
+            let idx_u16 = u16::try_from(idx).ok()?;
+            let up = isize::try_from(idx).ok()? * UP;
+
             // Check neighboring syscall DOWN.
             if read(address.add(idx * DOWN)) == 0x4C
                 && read(address.add(1 + idx * DOWN)) == 0x8B
@@ -112,22 +125,22 @@ fn search_neighbors_x64(address: *const u8) -> Option<u16> {
                 && read(address.add(6 + idx * DOWN)) == 0x00
                 && read(address.add(7 + idx * DOWN)) == 0x00
             {
-                let high = read(address.add(5 + idx * DOWN)) as u16;
-                let low = read(address.add(4 + idx * DOWN)) as u16;
-                return Some((high << 8) | low.wrapping_sub(idx as u16));
+                let high = u16::from(read(address.add(5 + idx * DOWN)));
+                let low = u16::from(read(address.add(4 + idx * DOWN)));
+                return Some((high << 8) | low.wrapping_sub(idx_u16));
             }
 
             // Check neighboring syscall UP.
-            if read(address.offset(idx as isize * UP)) == 0x4C
-                && read(address.offset(1 + idx as isize * UP)) == 0x8B
-                && read(address.offset(2 + idx as isize * UP)) == 0xD1
-                && read(address.offset(3 + idx as isize * UP)) == 0xB8
-                && read(address.offset(6 + idx as isize * UP)) == 0x00
-                && read(address.offset(7 + idx as isize * UP)) == 0x00
+            if read(address.offset(up)) == 0x4C
+                && read(address.offset(1 + up)) == 0x8B
+                && read(address.offset(2 + up)) == 0xD1
+                && read(address.offset(3 + up)) == 0xB8
+                && read(address.offset(6 + up)) == 0x00
+                && read(address.offset(7 + up)) == 0x00
             {
-                let high = read(address.offset(5 + idx as isize * UP)) as u16;
-                let low = read(address.offset(4 + idx as isize * UP)) as u16;
-                return Some((high << 8) | low.wrapping_add(idx as u16));
+                let high = u16::from(read(address.offset(5 + up)));
+                let low = u16::from(read(address.offset(4 + up)));
+                return Some((high << 8) | low.wrapping_add(idx_u16));
             }
         }
     }
@@ -148,12 +161,17 @@ fn search_neighbors_x64(address: *const u8) -> Option<u16> {
 ///
 /// let ntdll = Module::find("ntdll.dll").unwrap();
 /// let addr = ntdll.proc("NtClose").unwrap();
-/// if let Some(syscall_addr) = get_syscall_address(addr) {
+/// if let Some(syscall_addr) = unsafe { get_syscall_address(addr) } {
 ///     println!("syscall instruction at: {:#x}", syscall_addr);
 /// }
 /// ```
+///
+/// # Safety
+///
+/// `address` must point to a readable syscall stub with at least 257 bytes
+/// available from its start.
 #[cfg(target_arch = "x86_64")]
-pub fn get_syscall_address(address: *mut c_void) -> Option<usize> {
+pub unsafe fn get_syscall_address(address: *mut c_void) -> Option<usize> {
     unsafe {
         let address = address.cast::<u8>();
 
@@ -183,8 +201,8 @@ fn extract_ssn(address: *const u8) -> Option<u16> {
             && read(address.add(3)) == 0x00
             && read(address.add(4)) == 0x00
         {
-            let high = read(address.add(2)) as u16;
-            let low = read(address.add(1)) as u16;
+            let high = u16::from(read(address.add(2)));
+            let low = u16::from(read(address.add(1)));
             return Some((high << 8) | low);
         }
 
@@ -211,24 +229,27 @@ fn extract_ssn(address: *const u8) -> Option<u16> {
 fn search_neighbors_x86(address: *const u8) -> Option<u16> {
     unsafe {
         for idx in 1..RANGE {
+            let idx_u16 = u16::try_from(idx).ok()?;
+            let up = isize::try_from(idx).ok()? * UP;
+
             // Check neighboring syscall DOWN.
             if read(address.add(idx * DOWN)) == 0xB8
                 && read(address.add(3 + idx * DOWN)) == 0x00
                 && read(address.add(4 + idx * DOWN)) == 0x00
             {
-                let high = read(address.add(2 + idx * DOWN)) as u16;
-                let low = read(address.add(1 + idx * DOWN)) as u16;
-                return Some((high << 8) | low.wrapping_sub((idx * 2) as u16));
+                let high = u16::from(read(address.add(2 + idx * DOWN)));
+                let low = u16::from(read(address.add(1 + idx * DOWN)));
+                return Some((high << 8) | low.wrapping_sub(idx_u16 * 2));
             }
 
             // Check neighboring syscall UP.
-            if read(address.offset(idx as isize * UP)) == 0xB8
-                && read(address.offset(3 + idx as isize * UP)) == 0x00
-                && read(address.offset(4 + idx as isize * UP)) == 0x00
+            if read(address.offset(up)) == 0xB8
+                && read(address.offset(3 + up)) == 0x00
+                && read(address.offset(4 + up)) == 0x00
             {
-                let high = read(address.offset(2 + idx as isize * UP)) as u16;
-                let low = read(address.offset(1 + idx as isize * UP)) as u16;
-                return Some((high << 8) | low.wrapping_add((idx * 2) as u16));
+                let high = u16::from(read(address.offset(2 + up)));
+                let low = u16::from(read(address.offset(1 + up)));
+                return Some((high << 8) | low.wrapping_add(idx_u16 * 2));
             }
         }
     }
@@ -248,12 +269,17 @@ fn search_neighbors_x86(address: *const u8) -> Option<u16> {
 ///
 /// let ntdll = Module::find("ntdll.dll").unwrap();
 /// let addr = ntdll.proc("NtClose").unwrap();
-/// if let Some(syscall_addr) = get_syscall_address(addr) {
+/// if let Some(syscall_addr) = unsafe { get_syscall_address(addr) } {
 ///     println!("syscall instruction at: {:#x}", syscall_addr);
 /// }
 /// ```
+///
+/// # Safety
+///
+/// `address` must point to a readable syscall stub with at least 259 bytes
+/// available from its start.
 #[cfg(target_arch = "x86")]
-pub fn get_syscall_address(address: *mut c_void) -> Option<usize> {
+pub unsafe fn get_syscall_address(address: *mut c_void) -> Option<usize> {
     unsafe {
         let address = address.cast::<u8>();
 
@@ -286,7 +312,7 @@ pub fn get_syscall_address(address: *mut c_void) -> Option<usize> {
 
 /// Checks if running under WOW64 emulation.
 #[cfg(target_arch = "x86")]
-#[inline(always)]
+#[inline]
 fn is_wow64() -> bool {
     let addr = crate::env::__readfsdword(0xC0);
     addr != 0
@@ -298,10 +324,10 @@ fn extract_ssn(address: *const u8) -> Option<u16> {
     unsafe {
         // SVC #<imm16>.
         if read(address.add(3)) == 0xD4 && (read(address.add(2)) & 0xFC) == 0x00 {
-            let opcode = (read(address.add(3)) as u32) << 24
-                | (read(address.add(2)) as u32) << 16
-                | (read(address.add(1)) as u32) << 8
-                | (read(address) as u32);
+            let opcode = u32::from(read(address.add(3))) << 24
+                | u32::from(read(address.add(2))) << 16
+                | u32::from(read(address.add(1))) << 8
+                | u32::from(read(address));
 
             let ssn = (opcode >> 5) & 0xFFFF;
             return Some(ssn as u16);

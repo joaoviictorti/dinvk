@@ -2,9 +2,7 @@
 //!
 //! A Rust library for dynamic code invocation on Windows. It resolves modules and exports at runtime 
 //! by walking the PEB, eliminating the need for static linking or direct Win32 API calls. 
-//! Built with `#[no_std]` support and compatible with `x64`, `x86`, `ARM64`, and `WoW64` architectures.
-//!
-//! ## Usage
+//! Compatible with `x64`, `x86`, `ARM64` and `WoW64` architectures.
 //!
 //! ### Module and Export Resolution
 //!
@@ -87,7 +85,6 @@ pub mod hash;
 pub mod env;
 pub mod sys;
 
-mod pe;
 mod module;
 mod macros;
 
